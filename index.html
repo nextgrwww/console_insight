@@ -55,13 +55,13 @@
             position: absolute;
             right: -5%;
             bottom: -5%;
-            opacity: 0.07; /* Increased slightly for better visibility */
+            opacity: 0.08; /* Increased slightly for better visibility */
             transform: rotate(-15deg);
             pointer-events: none;
         }
         
         .card-hover:hover .bg-card-icon {
-            opacity: 0.12;
+            opacity: 0.15;
             transform: rotate(-5deg) scale(1.1);
             transition: all 0.6s ease-in-out;
         }
@@ -77,20 +77,6 @@
          * Change the variable below to update the project name throughout the app:
          */
         const APP_TITLE = "Console Blueprint"; 
-
-        /**
-         * # Name Suggestions for "Console" Company App
-         * 1. Console Blueprint - Current Choice: Implies architectural precision.
-         * 2. Console Construct - Reflects building and assembling financial data.
-         * 3. Console Insights - Professional data analysis focus.
-         * 4. Console Foundation - Core data upon which the company is built.
-         * 5. Console Command - Full control over every cash flow point.
-         * 6. Console Flow - Visualizes movement of project capital.
-         * 7. Console Ledger - The authoritative accounting record.
-         * 8. Console Balance - Focuses on worker and job reconciliation.
-         * 9. Console ProjectIQ - Emphasizes smart management logic.
-         * 10. Console Audit - Highlights the immutable trail of verification.
-         */
 
         const { useState, useEffect, useMemo } = React;
         const { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } = window.Recharts;
@@ -144,7 +130,7 @@
         }
 
         const CATEGORIES = ["Wages", "Building Material", "Fuel & Maintenance", "Office & Tools", "Loan", "Loan Repay", "Lettings", "Social Media", "Personal", "Refund", "Fine"];
-        const STORAGE_KEY = 'console_insights_v10_complete';
+        const STORAGE_KEY = 'console_insights_v11_stable';
 
         const INITIAL_STATE = {
             projects: [
@@ -215,7 +201,7 @@
 
             const runAiAudit = async () => {
                 setIsAiAuditing(true);
-                const prompt = `Review: In £${stats.income}, Out £${stats.expenses}. Projects: ${data.projects.length}. Categories: ${JSON.stringify(stats.byCategory)}. Summarize health.`;
+                const prompt = `Financial Data: In £${stats.income}, Out £${stats.expenses}. Projects: ${data.projects.length}. Categories: ${JSON.stringify(stats.byCategory)}. Summarize health.`;
                 const res = await callGemini(prompt);
                 setAiAuditResult(res);
                 setIsAiAuditing(false);
@@ -254,6 +240,37 @@
                     transactions: editingItem?.type === 'transaction' ? prev.transactions.map(t => t.id === tData.id ? tData : t) : [tData, ...prev.transactions]
                 }));
                 setShowAddModal(false); setEditingItem(null); setRawEntryText("");
+            };
+
+            const saveProject = (e) => {
+                e.preventDefault();
+                const fd = new FormData(e.target);
+                const nName = fd.get('name');
+                const oName = editingItem?.item?.name;
+                const pData = {
+                    id: editingItem?.type === 'project' ? editingItem.item.id : `P${Date.now()}`,
+                    name: nName, client: fd.get('client'), quote: parseFloat(fd.get('quote')) || 0, status: fd.get('status'),
+                };
+                setData(prev => {
+                    let trans = prev.transactions;
+                    if (editingItem && oName !== nName) trans = trans.map(t => t.project === oName ? { ...t, project: nName } : t);
+                    return { ...prev, projects: editingItem?.type === 'project' ? prev.projects.map(p => p.id === pData.id ? pData : p) : [...prev.projects, pData], transactions: trans };
+                });
+                setShowProjectModal(false); setEditingItem(null);
+            };
+
+            const saveWorker = (e) => {
+                e.preventDefault();
+                const fd = new FormData(e.target);
+                const nName = fd.get('name');
+                const oName = editingItem?.item?.name;
+                const wData = { id: editingItem?.type === 'worker' ? editingItem.item.id : `W${Date.now()}`, name: nName, role: fd.get('role') };
+                setData(prev => {
+                    let trans = prev.transactions;
+                    if (editingItem && oName !== nName) trans = trans.map(t => t.worker === oName ? { ...t, worker: nName } : t);
+                    return { ...prev, workers: editingItem?.type === 'worker' ? prev.workers.map(w => w.id === wData.id ? wData : w) : [...prev.workers, wData], transactions: trans };
+                });
+                setShowWorkerModal(false); setEditingItem(null);
             };
 
             const deleteEntity = (type, id) => {
@@ -296,12 +313,11 @@
                             </nav>
 
                             <div className="mt-auto pt-10">
-                                {/* Quick Entry Button with Background Icon fix */}
                                 <button 
                                     onClick={() => { setEditingItem(null); setShowAddModal(true); }} 
                                     className="w-full flex items-center justify-center gap-3 bg-slate-900 hover:bg-indigo-600 text-white py-5 rounded-[28px] font-bold shadow-xl active:scale-95 transition-all duration-300 relative overflow-hidden group"
                                 >
-                                    <div className="bg-card-icon text-white opacity-[0.12] absolute -right-6 -bottom-6 rotate-12 scale-150 group-hover:scale-[1.8] transition-transform duration-500">
+                                    <div className="bg-card-icon text-white opacity-[0.25] absolute -right-6 -bottom-6 rotate-12 scale-150 group-hover:scale-[1.8] transition-transform duration-500">
                                         <Icons.PlusCircle size={100} />
                                     </div>
                                     <div className="relative z-10 flex items-center gap-3">
@@ -309,7 +325,7 @@
                                         <span>Quick Entry</span>
                                     </div>
                                 </button>
-                                <button onClick={() => { if(confirm("Purge data?")) setData(INITIAL_STATE); }} className="w-full text-[10px] uppercase font-black text-slate-300 hover:text-rose-500 py-6 transition-colors">Reset Local Cache</button>
+                                <button onClick={() => { if(confirm("Purge data?")) setData(INITIAL_STATE); }} className="w-full text-[10px] uppercase font-black text-slate-300 hover:text-red-500 py-6 transition-colors">Reset Local Cache</button>
                             </div>
                         </div>
                     </aside>
@@ -601,7 +617,7 @@
                     {showAddModal && (
                         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-3xl flex items-end md:items-center justify-center z-50 p-0 md:p-6 overflow-y-auto">
                             <div className="bg-white w-full max-w-2xl rounded-t-[60px] md:rounded-[60px] shadow-2xl overflow-hidden animate-in">
-                                <div className="px-12 py-10 border-b border-slate-50 flex justify-between items-center bg-slate-50/30">
+                                <div className="px-12 py-10 border-b border-slate-100 flex justify-between items-center bg-slate-50/30">
                                     <h3 className="text-2xl font-black text-slate-800 uppercase tracking-tighter">Capture Entry</h3>
                                     <button onClick={() => {setShowAddModal(false); setEditingItem(null);}} className="w-14 h-14 flex items-center justify-center bg-white shadow-sm text-slate-400 rounded-full hover:text-rose-500 transition-colors">×</button>
                                 </div>
@@ -628,6 +644,39 @@
                                         <button type="submit" className="w-full py-7 bg-indigo-600 text-white rounded-[32px] font-black uppercase text-xs tracking-[0.5em] shadow-2xl shadow-indigo-100 active:scale-95 transition-all">Submit Final Entry</button>
                                     </form>
                                 </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Missing Modal Logic Restored Below */}
+                    {showProjectModal && (
+                        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-3xl flex items-center justify-center z-50 p-6">
+                            <div className="bg-white w-full max-w-xl rounded-[64px] p-16 shadow-2xl animate-in">
+                                <h3 className="text-4xl font-thin-heading mb-12 text-slate-800 uppercase tracking-tighter">Project Config</h3>
+                                <form onSubmit={saveProject} className="space-y-8">
+                                    <div className="space-y-2"><label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Job Title</label><input required name="name" defaultValue={editingItem?.item?.name || ''} placeholder="Identifier" className="w-full px-8 py-6 border-2 border-slate-50 bg-slate-50 rounded-[32px] font-bold outline-none focus:bg-white focus:border-indigo-100 transition-all text-xl" /></div>
+                                    <div className="space-y-2"><label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Client Identity</label><input required name="client" defaultValue={editingItem?.item?.client || ''} placeholder="Entity Name" className="w-full px-8 py-6 border-2 border-slate-50 bg-slate-50 rounded-[32px] font-bold outline-none focus:bg-white focus:border-indigo-100 transition-all text-xl" /></div>
+                                    <div className="grid grid-cols-2 gap-8">
+                                        <div className="space-y-2"><label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Quote (£)</label><input required name="quote" type="number" defaultValue={editingItem?.item?.quote || ''} placeholder="Total" className="w-full px-8 py-6 border-2 border-slate-50 bg-slate-50 rounded-[32px] font-bold outline-none focus:bg-white focus:border-indigo-100 transition-all text-xl" /></div>
+                                        <div className="space-y-2"><label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">State</label><select name="status" defaultValue={editingItem?.item?.status || 'Started'} className="w-full px-8 py-6 border-2 border-slate-50 bg-slate-50 rounded-[32px] font-bold outline-none focus:bg-white focus:border-indigo-100 transition-all uppercase text-[11px] tracking-widest"><option value="Started">Started</option><option value="Ongoing">Ongoing</option><option value="Completed">Completed</option></select></div>
+                                    </div>
+                                    <button type="submit" className="w-full py-7 bg-slate-900 text-white rounded-[32px] font-black text-xs uppercase tracking-widest hover:bg-indigo-600 transition-all shadow-xl">Commit Updates</button>
+                                    <button type="button" onClick={() => {setShowProjectModal(false); setEditingItem(null);}} className="w-full text-slate-300 font-black uppercase text-[10px] mt-4 tracking-widest transition-colors hover:text-rose-500">Dismiss</button>
+                                </form>
+                            </div>
+                        </div>
+                    )}
+
+                    {showWorkerModal && (
+                        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-3xl flex items-center justify-center z-50 p-6">
+                            <div className="bg-white w-full max-w-xl rounded-[64px] p-16 shadow-2xl animate-in">
+                                <h3 className="text-4xl font-thin-heading mb-12 text-slate-800 uppercase tracking-tighter">Staff Config</h3>
+                                <form onSubmit={saveWorker} className="space-y-8">
+                                    <div className="space-y-2"><label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Full Legal Name</label><input required name="name" defaultValue={editingItem?.item?.name || ''} placeholder="Name" className="w-full px-8 py-6 border-2 border-slate-50 bg-slate-50 rounded-[32px] font-bold outline-none focus:bg-white focus:border-indigo-100 transition-all text-xl" /></div>
+                                    <div className="space-y-2"><label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Designation</label><input required name="role" defaultValue={editingItem?.item?.role || ''} placeholder="e.g. Lead Builder" className="w-full px-8 py-6 border-2 border-slate-50 bg-slate-50 rounded-[32px] font-bold outline-none focus:bg-white focus:border-indigo-100 transition-all text-xl" /></div>
+                                    <button type="submit" className="w-full py-7 bg-slate-900 text-white rounded-[32px] font-black text-xs uppercase tracking-widest hover:bg-indigo-600 transition-all shadow-xl">Apply Identity</button>
+                                    <button type="button" onClick={() => {setShowWorkerModal(false); setEditingItem(null);}} className="w-full text-slate-300 font-black uppercase text-[10px] mt-4 tracking-widest transition-colors hover:text-rose-500">Abort</button>
+                                </form>
                             </div>
                         </div>
                     )}
