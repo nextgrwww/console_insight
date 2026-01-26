@@ -55,13 +55,13 @@
             position: absolute;
             right: -5%;
             bottom: -5%;
-            opacity: 0.04;
+            opacity: 0.07; /* Increased slightly for better visibility */
             transform: rotate(-15deg);
             pointer-events: none;
         }
         
         .card-hover:hover .bg-card-icon {
-            opacity: 0.08;
+            opacity: 0.12;
             transform: rotate(-5deg) scale(1.1);
             transition: all 0.6s ease-in-out;
         }
@@ -144,18 +144,20 @@
         }
 
         const CATEGORIES = ["Wages", "Building Material", "Fuel & Maintenance", "Office & Tools", "Loan", "Loan Repay", "Lettings", "Social Media", "Personal", "Refund", "Fine"];
-        const STORAGE_KEY = 'console_insights_v9_premium';
+        const STORAGE_KEY = 'console_insights_v10_complete';
 
         const INITIAL_STATE = {
             projects: [
-                { id: 'P006', name: '97 Larch', status: 'Ongoing', quote: 2150, client: 'Magdalena' },
-                { id: 'P007', name: '26 Camden', status: 'Ongoing', quote: 11120, client: 'Bisi' },
-                { id: 'P009', name: '99 Selsdon', status: 'Completed', quote: 4000, client: 'Bisi' },
-                { id: 'P007W', name: '25 Widecombe', status: 'Started', quote: 12400, client: 'Andrew' },
+                { id: 'P001', name: '97 Larch', status: 'Ongoing', quote: 2150, client: 'Magdalena' },
+                { id: 'P002', name: '26 Camden', status: 'Ongoing', quote: 11120, client: 'Bisi' },
+                { id: 'P003', name: '99 Selsdon', status: 'Completed', quote: 4000, client: 'Bisi' },
+                { id: 'P004', name: '25 Widecombe', status: 'Started', quote: 12400, client: 'Andrew' },
                 { id: 'P005', name: 'Flat 14', status: 'Completed', quote: 1500, client: 'Heavenly' },
-                { id: 'P008', name: 'Paula', status: 'Started', quote: 1000, client: 'Qadoos Shb' },
-                { id: 'P004', name: '30 Briar', status: 'Ongoing', quote: 8630, client: 'Direct' },
-                { id: 'P003', name: '35 Croydon', status: 'Completed', quote: 1950, client: 'Heavenly' }
+                { id: 'P006', name: 'Paula', status: 'Started', quote: 1000, client: 'Qadoos Shb' },
+                { id: 'P007', name: '30 Briar', status: 'Ongoing', quote: 8630, client: 'Direct' },
+                { id: 'P008', name: '35 Croydon', status: 'Completed', quote: 1950, client: 'Heavenly' },
+                { id: 'P009', name: '15 Wandle', status: 'Ongoing', quote: 5000, client: 'Direct' },
+                { id: 'P010', name: '26 Abercornway', status: 'Started', quote: 7500, client: 'Direct' }
             ],
             workers: [
                 { id: 'W001', name: 'Shehzad', role: 'Foreman' },
@@ -163,7 +165,11 @@
                 { id: 'W003', name: 'ZAF', role: 'Advance Account' },
                 { id: 'W004', name: 'Sukhi', role: 'Painter' },
                 { id: 'W005', name: 'Ghuman', role: 'Laborer' },
-                { id: 'W006', name: 'Waseem', role: 'Worker' }
+                { id: 'W006', name: 'Waseem', role: 'Worker' },
+                { id: 'W007', name: 'Ijteba', role: 'Tech Support' },
+                { id: 'W008', name: 'Rida', role: 'Financial' },
+                { id: 'W009', name: 'Mubarak', role: 'Contractor' },
+                { id: 'W010', name: 'Faheem', role: 'Contractor' }
             ],
             transactions: [
                 { id: 101, date: '2026-02-01', description: 'DVLA LA60HPV', category: 'Fuel & Maintenance', project: 'General', worker: '', received: 0, paid: 31.5 },
@@ -171,7 +177,9 @@
                 { id: 103, date: '2026-02-01', description: 'Loan from Shehzad for Wages', category: 'Loan', project: 'General', worker: 'Shehzad', received: 700, paid: 0 },
                 { id: 104, date: '2025-06-06', description: 'GSHI AMZ LTD - Lucky Credit', category: 'Wages', project: 'General', worker: 'Lucky', received: 1000, paid: 0 },
                 { id: 105, date: '2026-01-25', description: 'Premier Spaces Received', category: 'Lettings', project: 'General', worker: '', received: 1000, paid: 0 },
-                { id: 106, date: '2026-02-01', description: 'Rent Deduction FTM December', category: 'Lettings', project: 'General', worker: '', received: 1650, paid: 0 }
+                { id: 106, date: '2026-02-01', description: 'Rent Deduction FTM December', category: 'Lettings', project: 'General', worker: '', received: 1650, paid: 0 },
+                { id: 107, date: '2025-08-12', description: '99 Selsdon Payment Received', category: 'Refund', project: '99 Selsdon', worker: '', received: 3000, paid: 0 },
+                { id: 108, date: '2025-10-20', description: '26 Camden Fence Payment', category: 'Building Material', project: '26 Camden', worker: '', received: 782, paid: 0 }
             ]
         };
 
@@ -197,16 +205,17 @@
             const stats = useMemo(() => {
                 const income = data.transactions.reduce((acc, t) => acc + (parseFloat(t.received) || 0), 0);
                 const expenses = data.transactions.reduce((acc, t) => acc + (parseFloat(t.paid) || 0), 0);
+                const balance = income - expenses;
                 const byCategory = CATEGORIES.map(cat => ({
                     name: cat,
                     value: data.transactions.filter(t => t.category === cat).reduce((acc, t) => acc + (parseFloat(t.paid) || 0), 0)
                 })).filter(c => c.value > 0);
-                return { income, expenses, balance: income - expenses, byCategory };
+                return { income, expenses, balance, byCategory };
             }, [data.transactions]);
 
             const runAiAudit = async () => {
                 setIsAiAuditing(true);
-                const prompt = `Review: In £${stats.income}, Out £${stats.expenses}. Give 3 professional bullet points identifying trends.`;
+                const prompt = `Review: In £${stats.income}, Out £${stats.expenses}. Projects: ${data.projects.length}. Categories: ${JSON.stringify(stats.byCategory)}. Summarize health.`;
                 const res = await callGemini(prompt);
                 setAiAuditResult(res);
                 setIsAiAuditing(false);
@@ -215,7 +224,7 @@
             const smartParseEntry = async () => {
                 if (!rawEntryText.trim()) return;
                 setIsParsing(true);
-                const res = await callGemini(`Parse to JSON: "${rawEntryText}". Fields: date, description, category, project, worker, received, paid.`);
+                const res = await callGemini(`Parse: "${rawEntryText}". JSON ONLY: date, description, category, project, worker, received, paid.`);
                 try {
                     const parsed = JSON.parse(res.replace(/```json|```/g, "").trim());
                     const form = document.getElementById('unified-entry-form');
@@ -228,7 +237,7 @@
                         form.received.value = parsed.received || "";
                         form.paid.value = parsed.paid || "";
                     }
-                } catch (e) { console.error("AI error"); } finally { setIsParsing(false); }
+                } catch (e) { console.error("Parse fail"); } finally { setIsParsing(false); }
             };
 
             const saveTransaction = (e) => {
@@ -287,9 +296,18 @@
                             </nav>
 
                             <div className="mt-auto pt-10">
-                                <button onClick={() => { setEditingItem(null); setShowAddModal(true); }} className="w-full flex items-center justify-center gap-3 bg-slate-900 hover:bg-indigo-600 text-white py-5 rounded-[28px] font-bold shadow-2xl active:scale-95 transition-all duration-300">
-                                    <Icons.PlusCircle size={20} />
-                                    <span>Quick Entry</span>
+                                {/* Quick Entry Button with Background Icon fix */}
+                                <button 
+                                    onClick={() => { setEditingItem(null); setShowAddModal(true); }} 
+                                    className="w-full flex items-center justify-center gap-3 bg-slate-900 hover:bg-indigo-600 text-white py-5 rounded-[28px] font-bold shadow-xl active:scale-95 transition-all duration-300 relative overflow-hidden group"
+                                >
+                                    <div className="bg-card-icon text-white opacity-[0.12] absolute -right-6 -bottom-6 rotate-12 scale-150 group-hover:scale-[1.8] transition-transform duration-500">
+                                        <Icons.PlusCircle size={100} />
+                                    </div>
+                                    <div className="relative z-10 flex items-center gap-3">
+                                        <Icons.PlusCircle size={20} />
+                                        <span>Quick Entry</span>
+                                    </div>
                                 </button>
                                 <button onClick={() => { if(confirm("Purge data?")) setData(INITIAL_STATE); }} className="w-full text-[10px] uppercase font-black text-slate-300 hover:text-rose-500 py-6 transition-colors">Reset Local Cache</button>
                             </div>
@@ -308,12 +326,11 @@
                         </header>
 
                         <div className="p-6 md:p-16 max-w-7xl mx-auto space-y-16">
-                            {/* Slide transition keyed by activeTab */}
                             <div key={activeTab} className="tab-content-active space-y-16">
                                 
                                 {activeTab === 'dashboard' && (
                                     <div className="space-y-16">
-                                        <header className="flex flex-col md:flex-row md:justify-between md:items-end gap-6">
+                                        <header className="flex flex-col md:flex-row md:justify-between md:items-end gap-6 relative overflow-hidden group">
                                             <div className="space-y-4">
                                                 <h2 className="text-7xl font-thin-heading text-slate-800 tracking-tighter">The Pulse</h2>
                                                 <p className="text-slate-400 font-medium tracking-wide uppercase text-[11px] flex items-center gap-2">
@@ -339,7 +356,6 @@
                                         )}
 
                                         <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
-                                            {/* Stat Cards with Large Background Icons */}
                                             <div className="bg-white p-10 rounded-[48px] shadow-sm border border-slate-100 relative overflow-hidden group card-hover">
                                                 <div className="bg-card-icon text-emerald-500"><Icons.ArrowUpCircle size={180} /></div>
                                                 <p className="text-[11px] font-black uppercase tracking-[0.25em] text-slate-400 mb-6">Cash Inflow</p>
@@ -352,7 +368,7 @@
                                                 <div className="text-6xl font-thin-heading text-rose-500">£{stats.expenses.toLocaleString()}</div>
                                                 <p className="text-[10px] font-bold text-slate-300 mt-6 uppercase tracking-widest">Combined Expenditure</p>
                                             </div>
-                                            <div className="bg-slate-900 p-10 rounded-[48px] shadow-2xl relative overflow-hidden group card-hover">
+                                            <div className="bg-slate-900 p-10 rounded-[48px] shadow-2xl relative overflow-hidden group card-hover border-indigo-900/50">
                                                 <div className="bg-card-icon text-indigo-400 opacity-10"><Icons.Wallet size={180} /></div>
                                                 <p className="text-[11px] font-black uppercase tracking-[0.25em] text-slate-500 mb-6">Net Liquid</p>
                                                 <div className="text-6xl font-thin-heading text-white">£{stats.balance.toLocaleString()}</div>
@@ -361,8 +377,8 @@
                                         </div>
 
                                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-                                            <div className="bg-white p-14 rounded-[56px] shadow-sm border border-slate-100 min-h-[500px] relative overflow-hidden group">
-                                                <div className="bg-card-icon text-slate-900"><Icons.PieChart size={200} /></div>
+                                            <div className="bg-white p-14 rounded-[56px] shadow-sm border border-slate-100 min-h-[500px] relative overflow-hidden group card-hover">
+                                                <div className="bg-card-icon text-slate-900"><Icons.PieChart size={220} /></div>
                                                 <h3 className="text-3xl font-light-heading mb-12 flex items-center gap-4">
                                                     <span className="w-1.5 h-10 bg-indigo-600 rounded-full"></span>
                                                     Spend Distribution
@@ -380,8 +396,8 @@
                                                 </div>
                                             </div>
 
-                                            <div className="bg-white p-14 rounded-[56px] shadow-sm border border-slate-100 min-h-[500px] relative overflow-hidden group">
-                                                <div className="bg-card-icon text-slate-900"><Icons.FolderKanban size={200} /></div>
+                                            <div className="bg-white p-14 rounded-[56px] shadow-sm border border-slate-100 min-h-[500px] relative overflow-hidden group card-hover">
+                                                <div className="bg-card-icon text-slate-900"><Icons.FolderKanban size={220} /></div>
                                                 <h3 className="text-3xl font-light-heading mb-12 flex items-center gap-4">
                                                     <span className="w-1.5 h-10 bg-emerald-500 rounded-full"></span>
                                                     Portfolio Health
@@ -394,10 +410,10 @@
                                                             <div key={p.id} className="space-y-4">
                                                                 <div className="flex justify-between items-end">
                                                                     <span className="font-semibold text-slate-800 tracking-tight text-lg">{p.name}</span>
-                                                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">In: £{rec.toLocaleString()}</span>
+                                                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Received: £{rec.toLocaleString()}</span>
                                                                 </div>
                                                                 <div className="w-full bg-slate-50 h-2 rounded-full overflow-hidden border border-slate-100/50">
-                                                                    <div className="h-full bg-indigo-500 transition-all duration-1000 shadow-xl" style={{ width: `${pct}%` }}></div>
+                                                                    <div className="h-full bg-indigo-500 transition-all duration-1000 shadow-xl shadow-indigo-100" style={{ width: `${pct}%` }}></div>
                                                                 </div>
                                                             </div>
                                                         );
@@ -410,7 +426,7 @@
 
                                 {activeTab === 'transactions' && (
                                     <div className="space-y-16 animate-in">
-                                        <header className="flex flex-col md:flex-row md:items-center justify-between gap-8">
+                                        <header className="flex flex-col md:flex-row md:items-center justify-between gap-8 relative overflow-hidden group">
                                             <div className="space-y-4">
                                                 <h2 className="text-7xl font-thin-heading text-slate-800 tracking-tighter">The Ledger</h2>
                                                 <p className="text-slate-400 font-medium tracking-wide uppercase text-[11px] flex items-center gap-2">
@@ -418,6 +434,7 @@
                                                     Immutable Historical Records
                                                 </p>
                                             </div>
+                                            <div className="bg-card-icon text-indigo-600 opacity-[0.03] absolute -left-20 top-0 rotate-45"><Icons.Receipt size={300} /></div>
                                             <div className="relative w-full md:w-[450px]">
                                                 <Icons.Search className="absolute left-8 top-1/2 -translate-y-1/2 text-slate-300" size={20} />
                                                 <input 
@@ -473,14 +490,15 @@
 
                                 {activeTab === 'projects' && (
                                     <div className="space-y-16 animate-in">
-                                        <header className="flex justify-between items-end">
+                                        <header className="flex justify-between items-end relative overflow-hidden group">
                                             <div className="space-y-4">
                                                 <h2 className="text-7xl font-thin-heading text-slate-800 tracking-tighter">Portfolio</h2>
                                                 <p className="text-slate-400 font-medium tracking-wide uppercase text-[11px] flex items-center gap-2">
                                                     <span className="w-8 h-px bg-slate-200"></span>
-                                                    Contract Revenue vs Operational Expenditure
+                                                    Contract Revenue Tracking
                                                 </p>
                                             </div>
+                                            <div className="bg-card-icon text-emerald-600 opacity-[0.03] absolute -left-20 top-0 rotate-45"><Icons.FolderKanban size={300} /></div>
                                             <button onClick={() => { setEditingItem(null); setShowProjectModal(true); }} className="bg-slate-900 text-white px-10 py-6 rounded-[32px] font-black text-xs uppercase tracking-widest shadow-2xl active:scale-95 transition-all">
                                                 Initialize Project
                                             </button>
@@ -493,7 +511,7 @@
                                                 const bal = rec - exp; 
                                                 return (
                                                     <div key={p.id} className="bg-white p-12 rounded-[56px] border border-slate-100 shadow-sm relative group hover:border-indigo-100 transition-all hover:shadow-2xl card-hover overflow-hidden">
-                                                        <div className="bg-card-icon text-indigo-600"><Icons.Briefcase size={200} /></div>
+                                                        <div className="bg-card-icon text-indigo-600"><Icons.Briefcase size={220} /></div>
                                                         <div className="absolute top-10 right-10 flex gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
                                                             <button onClick={() => { setEditingItem({type: 'project', item: p}); setShowProjectModal(true); }} className="p-3 bg-slate-50 text-slate-400 hover:text-indigo-600 rounded-2xl"><Icons.Pencil size={20} /></button>
                                                             <button onClick={() => deleteEntity('project', p.id)} className="p-3 bg-slate-50 text-slate-400 hover:text-rose-600 rounded-2xl"><Icons.Trash2 size={20} /></button>
@@ -530,14 +548,15 @@
 
                                 {activeTab === 'workers' && (
                                     <div className="space-y-16 animate-in">
-                                        <header className="flex justify-between items-end">
+                                        <header className="flex justify-between items-end relative overflow-hidden group">
                                             <div className="space-y-4">
                                                 <h2 className="text-7xl font-thin-heading text-slate-800 tracking-tighter">The Hub</h2>
                                                 <p className="text-slate-400 font-medium tracking-wide uppercase text-[11px] flex items-center gap-2">
                                                     <span className="w-8 h-px bg-slate-200"></span>
-                                                    Human Capital & Payroll Reconciliation
+                                                    Payroll Reconciliation
                                                 </p>
                                             </div>
+                                            <div className="bg-card-icon text-indigo-600 opacity-[0.03] absolute -left-20 top-0 rotate-45"><Icons.Users size={300} /></div>
                                             <button onClick={() => { setEditingItem(null); setShowWorkerModal(true); }} className="bg-slate-900 text-white px-10 py-6 rounded-[32px] font-black text-xs uppercase tracking-widest shadow-2xl active:scale-95 transition-all">
                                                 Register Identity
                                             </button>
@@ -550,13 +569,13 @@
                                                 const bal = ern - pd; 
                                                 return (
                                                     <div key={w.id} className="bg-white p-14 rounded-[64px] border border-slate-100 shadow-sm flex items-center gap-12 relative group hover:border-indigo-100 hover:shadow-2xl transition-all card-hover overflow-hidden">
-                                                        <div className="bg-card-icon text-indigo-600"><Icons.Users size={200} /></div>
+                                                        <div className="bg-card-icon text-indigo-600 opacity-[0.1]"><Icons.Users size={220} /></div>
                                                         <div className="absolute top-12 right-12 flex gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
                                                             <button onClick={() => { setEditingItem({type: 'worker', item: w}); setShowWorkerModal(true); }} className="p-3 text-slate-400 hover:text-indigo-600 transition-colors"><Icons.Pencil size={20} /></button>
                                                             <button onClick={() => deleteEntity('worker', w.id)} className="p-3 text-slate-400 hover:text-rose-600 transition-colors"><Icons.Trash2 size={20} /></button>
                                                         </div>
                                                         <div className="w-28 h-28 bg-slate-900 text-white rounded-[40px] flex items-center justify-center font-black text-5xl shadow-2xl shadow-indigo-100">{w.name[0]}</div>
-                                                        <div className="flex-1 space-y-3">
+                                                        <div className="flex-1 space-y-3 relative z-10">
                                                             <h3 className="text-4xl font-light-heading text-slate-800 tracking-tight leading-none">{w.name}</h3>
                                                             <p className="text-[11px] font-black text-indigo-500 uppercase tracking-[0.3em]">{w.role}</p>
                                                             <div className="flex gap-10 mt-6 text-[10px] font-black uppercase tracking-widest">
@@ -564,7 +583,7 @@
                                                                 <div className="space-y-1"><p className="text-slate-300">Disbursed</p><p className="text-slate-700">£{pd.toLocaleString()}</p></div>
                                                             </div>
                                                         </div>
-                                                        <div className="text-right">
+                                                        <div className="text-right relative z-10">
                                                             <div className={`text-5xl font-thin-heading ${bal > 0 ? 'text-orange-500' : 'text-emerald-500'}`}>£{Math.abs(bal).toLocaleString()}</div>
                                                             <div className="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em] mt-2">{bal > 0 ? 'Wages Owed' : 'Account Balance'}</div>
                                                         </div>
@@ -578,12 +597,12 @@
                         </div>
                     </main>
 
-                    {/* Transaction Entry Modal (Consistent UI Style) */}
+                    {/* Modals with Consistent Aesthetics */}
                     {showAddModal && (
                         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-3xl flex items-end md:items-center justify-center z-50 p-0 md:p-6 overflow-y-auto">
                             <div className="bg-white w-full max-w-2xl rounded-t-[60px] md:rounded-[60px] shadow-2xl overflow-hidden animate-in">
                                 <div className="px-12 py-10 border-b border-slate-50 flex justify-between items-center bg-slate-50/30">
-                                    <h3 className="text-2xl font-black text-slate-800 uppercase tracking-tighter">{editingItem ? 'Amend' : 'Capture'} Logic</h3>
+                                    <h3 className="text-2xl font-black text-slate-800 uppercase tracking-tighter">Capture Entry</h3>
                                     <button onClick={() => {setShowAddModal(false); setEditingItem(null);}} className="w-14 h-14 flex items-center justify-center bg-white shadow-sm text-slate-400 rounded-full hover:text-rose-500 transition-colors">×</button>
                                 </div>
                                 <div className="p-12">
@@ -595,7 +614,7 @@
                                     <form id="unified-entry-form" onSubmit={saveTransaction} className="space-y-10">
                                         <div className="grid grid-cols-2 gap-8">
                                             <div className="space-y-2"><label className="text-[10px] font-black uppercase text-slate-400 ml-1 tracking-widest">Entry Date</label><input required name="date" type="date" defaultValue={editingItem?.item?.date || new Date().toISOString().split('T')[0]} className="w-full px-8 py-5 border-2 border-slate-50 bg-slate-50 rounded-[28px] font-bold focus:bg-white focus:border-indigo-100 outline-none transition-all" /></div>
-                                            <div className="space-y-2"><label className="text-[10px] font-black uppercase text-slate-400 ml-1 tracking-widest">Accounting Head</label><select name="category" defaultValue={editingItem?.item?.category || 'Building Material'} className="w-full px-8 py-5 border-2 border-slate-50 bg-slate-50 rounded-[28px] font-bold outline-none focus:bg-white focus:border-indigo-100 transition-all uppercase text-[11px] tracking-widest">{CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}</select></div>
+                                            <div className="space-y-2"><label className="text-[10px] font-black uppercase text-slate-400 ml-1 tracking-widest">Head</label><select name="category" defaultValue={editingItem?.item?.category || 'Building Material'} className="w-full px-8 py-5 border-2 border-slate-50 bg-slate-50 rounded-[28px] font-bold outline-none focus:bg-white focus:border-indigo-100 transition-all uppercase text-[11px] tracking-widest">{CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}</select></div>
                                         </div>
                                         <div className="space-y-2"><label className="text-[10px] font-black uppercase text-slate-400 ml-1 tracking-widest">Description</label><input required name="description" placeholder="Specify particulars..." defaultValue={editingItem?.item?.description || ''} className="w-full px-8 py-5 border-2 border-slate-50 bg-slate-50 rounded-[28px] font-bold outline-none focus:bg-white focus:border-indigo-100 transition-all text-lg" /></div>
                                         <div className="grid grid-cols-2 gap-8">
@@ -603,45 +622,12 @@
                                             <div className="space-y-2"><label className="text-[10px] font-black uppercase text-slate-400 ml-1 tracking-widest">Contractor</label><select name="worker" defaultValue={editingItem?.item?.worker || ''} className="w-full px-8 py-5 border-2 border-slate-50 bg-slate-50 rounded-[28px] font-bold outline-none focus:bg-white focus:border-indigo-100 transition-all uppercase text-[11px] tracking-widest"><option value="">Internal Staff</option>{data.workers.map(w => <option key={w.id} value={w.name}>{w.name}</option>)}</select></div>
                                         </div>
                                         <div className="grid grid-cols-2 gap-8">
-                                            <div className="space-y-2"><label className="text-[10px] font-black uppercase text-emerald-500 ml-1 tracking-[0.4em]">Cash In (£)</label><input name="received" type="number" step="0.01" placeholder="0.00" defaultValue={editingItem?.item?.received || ''} className="w-full px-8 py-5 border-2 border-emerald-50 bg-emerald-50/30 rounded-[28px] font-black text-emerald-600 outline-none focus:bg-white text-3xl" /></div>
-                                            <div className="space-y-2"><label className="text-[10px] font-black uppercase text-rose-500 ml-1 tracking-[0.4em]">Cash Out (£)</label><input name="paid" type="number" step="0.01" placeholder="0.00" defaultValue={editingItem?.item?.paid || ''} className="w-full px-8 py-5 border-2 border-rose-50 bg-rose-50/30 rounded-[28px] font-black text-rose-600 outline-none focus:bg-white text-3xl" /></div>
+                                            <div className="space-y-2"><label className="text-[10px] font-black uppercase text-emerald-500 ml-1 tracking-[0.4em]">Inflow (£)</label><input name="received" type="number" step="0.01" placeholder="0.00" defaultValue={editingItem?.item?.received || ''} className="w-full px-8 py-5 border-2 border-emerald-50 bg-emerald-50/30 rounded-[28px] font-black text-emerald-600 outline-none focus:bg-white text-3xl" /></div>
+                                            <div className="space-y-2"><label className="text-[10px] font-black uppercase text-rose-500 ml-1 tracking-[0.4em]">Outflow (£)</label><input name="paid" type="number" step="0.01" placeholder="0.00" defaultValue={editingItem?.item?.paid || ''} className="w-full px-8 py-5 border-2 border-rose-50 bg-rose-50/30 rounded-[28px] font-black text-rose-600 outline-none focus:bg-white text-3xl" /></div>
                                         </div>
                                         <button type="submit" className="w-full py-7 bg-indigo-600 text-white rounded-[32px] font-black uppercase text-xs tracking-[0.5em] shadow-2xl shadow-indigo-100 active:scale-95 transition-all">Submit Final Entry</button>
                                     </form>
                                 </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Standard Management Modals (Project/Worker) */}
-                    {showProjectModal && (
-                        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-3xl flex items-center justify-center z-50 p-6">
-                            <div className="bg-white w-full max-w-xl rounded-[64px] p-16 shadow-2xl animate-in">
-                                <h3 className="text-4xl font-thin-heading mb-12 text-slate-800 uppercase tracking-tighter">Project Config</h3>
-                                <form onSubmit={saveProject} className="space-y-8">
-                                    <div className="space-y-2"><label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Job Title</label><input required name="name" defaultValue={editingItem?.item?.name || ''} placeholder="Identifier" className="w-full px-8 py-6 border-2 border-slate-50 bg-slate-50 rounded-[32px] font-bold outline-none focus:bg-white focus:border-indigo-100 transition-all text-xl" /></div>
-                                    <div className="space-y-2"><label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Client Identity</label><input required name="client" defaultValue={editingItem?.item?.client || ''} placeholder="Entity Name" className="w-full px-8 py-6 border-2 border-slate-50 bg-slate-50 rounded-[32px] font-bold outline-none focus:bg-white focus:border-indigo-100 transition-all text-xl" /></div>
-                                    <div className="grid grid-cols-2 gap-8">
-                                        <div className="space-y-2"><label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Quote (£)</label><input required name="quote" type="number" defaultValue={editingItem?.item?.quote || ''} placeholder="Total" className="w-full px-8 py-6 border-2 border-slate-50 bg-slate-50 rounded-[32px] font-bold outline-none focus:bg-white focus:border-indigo-100 transition-all text-xl" /></div>
-                                        <div className="space-y-2"><label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">State</label><select name="status" defaultValue={editingItem?.item?.status || 'Started'} className="w-full px-8 py-6 border-2 border-slate-50 bg-slate-50 rounded-[32px] font-bold outline-none focus:bg-white focus:border-indigo-100 transition-all uppercase text-[11px] tracking-widest"><option value="Started">Started</option><option value="Ongoing">Ongoing</option><option value="Completed">Completed</option></select></div>
-                                    </div>
-                                    <button type="submit" className="w-full py-7 bg-slate-900 text-white rounded-[32px] font-black text-xs uppercase tracking-widest hover:bg-indigo-600 transition-all shadow-xl">Commit Updates</button>
-                                    <button type="button" onClick={() => {setShowProjectModal(false); setEditingItem(null);}} className="w-full text-slate-300 font-black uppercase text-[10px] mt-4 tracking-widest transition-colors hover:text-rose-500">Dismiss</button>
-                                </form>
-                            </div>
-                        </div>
-                    )}
-
-                    {showWorkerModal && (
-                        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-3xl flex items-center justify-center z-50 p-6">
-                            <div className="bg-white w-full max-w-xl rounded-[64px] p-16 shadow-2xl animate-in">
-                                <h3 className="text-4xl font-thin-heading mb-12 text-slate-800 uppercase tracking-tighter">Staff Config</h3>
-                                <form onSubmit={saveWorker} className="space-y-8">
-                                    <div className="space-y-2"><label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Full Legal Name</label><input required name="name" defaultValue={editingItem?.item?.name || ''} placeholder="Name" className="w-full px-8 py-6 border-2 border-slate-50 bg-slate-50 rounded-[32px] font-bold outline-none focus:bg-white focus:border-indigo-100 transition-all text-xl" /></div>
-                                    <div className="space-y-2"><label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Designation</label><input required name="role" defaultValue={editingItem?.item?.role || ''} placeholder="e.g. Lead Builder" className="w-full px-8 py-6 border-2 border-slate-50 bg-slate-50 rounded-[32px] font-bold outline-none focus:bg-white focus:border-indigo-100 transition-all text-xl" /></div>
-                                    <button type="submit" className="w-full py-7 bg-slate-900 text-white rounded-[32px] font-black text-xs uppercase tracking-widest hover:bg-indigo-600 transition-all shadow-xl">Apply Identity</button>
-                                    <button type="button" onClick={() => {setShowWorkerModal(false); setEditingItem(null);}} className="w-full text-slate-300 font-black uppercase text-[10px] mt-4 tracking-widest transition-colors hover:text-rose-500">Abort</button>
-                                </form>
                             </div>
                         </div>
                     )}
