@@ -116,7 +116,7 @@
             PieChart: (p) => <Icon {...p} path="M21.21 15.89A10 10 0 1 1 8 2.83M22 12A10 10 0 0 0 12 2v10z" />,
             Menu: (p) => <Icon {...p} path="M3 12h18M3 6h18M3 18h18" />,
             Activity: (p) => <Icon {...p} path="M22 12h-4l-3 9L9 3l-3 9H2" />,
-            Dollar: (p) => <Icon {...p} path="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+            Clock: (p) => <Icon {...p} path="M12 6v6l4 2 M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z" />
         };
 
         const apiKey = ""; 
@@ -136,7 +136,7 @@
 
         const CATEGORIES = ["Wages", "Building Material", "Fuel & Maintenance", "Office & Tools", "Loan", "Loan Repay", "Lettings", "Social Media", "Personal", "Refund", "Fine"];
         const PIE_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f43f5e', '#64748b', '#06b6d4', '#f97316'];
-        const STORAGE_KEY = 'console_insights_v12_final';
+        const STORAGE_KEY = 'console_insights_v13_wages';
 
         const INITIAL_STATE = {
             projects: [
@@ -149,11 +149,16 @@
                 { id: 'P007', name: '30 Briar', status: 'Ongoing', quote: 8630, client: 'Direct' }
             ],
             workers: [
-                { id: 'W001', name: 'Shehzad', role: 'Foreman' },
-                { id: 'W002', name: 'Lucky', role: 'Builder' },
-                { id: 'W003', name: 'ZAF', role: 'Advance Account' },
-                { id: 'W004', name: 'Sukhi', role: 'Painter' },
-                { id: 'W005', name: 'Ghuman', role: 'Laborer' }
+                { id: 'W001', name: 'Shehzad', role: 'Foreman', hourlyWage: 25 },
+                { id: 'W002', name: 'Lucky', role: 'Builder', hourlyWage: 20 },
+                { id: 'W003', name: 'ZAF', role: 'Advance Account', hourlyWage: 15 },
+                { id: 'W004', name: 'Sukhi', role: 'Painter', hourlyWage: 18 },
+                { id: 'W005', name: 'Ghuman', role: 'Laborer', hourlyWage: 12 },
+                { id: 'W006', name: 'Waseem', role: 'Worker', hourlyWage: 15 },
+                { id: 'W007', name: 'Ijteba', role: 'Tech Support', hourlyWage: 30 },
+                { id: 'W008', name: 'Rida', role: 'Financial', hourlyWage: 0 },
+                { id: 'W009', name: 'Mubarak', role: 'Contractor', hourlyWage: 18 },
+                { id: 'W010', name: 'Faheem', role: 'Contractor', hourlyWage: 18 }
             ],
             transactions: [
                 { id: 101, date: '2026-02-01', description: 'DVLA LA60HPV', category: 'Fuel & Maintenance', project: 'General', worker: '', received: 0, paid: 31.5 },
@@ -171,6 +176,7 @@
             const [showAddModal, setShowAddModal] = useState(false);
             const [showProjectModal, setShowProjectModal] = useState(false);
             const [showWorkerModal, setShowWorkerModal] = useState(false);
+            const [showAttendanceModal, setShowAttendanceModal] = useState(false);
             const [editingItem, setEditingItem] = useState(null); 
             const [searchQuery, setSearchQuery] = useState('');
             const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -192,10 +198,10 @@
                 };
                 window.addEventListener('keydown', handleKeys);
                 return () => window.removeEventListener('keydown', handleKeys);
-            }, [showAddModal, showProjectModal, showWorkerModal]);
+            }, [showAddModal, showProjectModal, showWorkerModal, showAttendanceModal]);
 
             const closeAllModals = () => {
-                setShowAddModal(false); setShowProjectModal(false); setShowWorkerModal(false); setEditingItem(null); setRawEntryText("");
+                setShowAddModal(false); setShowProjectModal(false); setShowWorkerModal(false); setShowAttendanceModal(false); setEditingItem(null); setRawEntryText("");
             };
 
             const stats = useMemo(() => {
@@ -284,13 +290,63 @@
                 const fd = new FormData(e.target);
                 const nName = fd.get('name');
                 const oName = editingItem?.item?.name;
-                const wData = { id: editingItem?.type === 'worker' ? editingItem.item.id : `W${Date.now()}`, name: nName, role: fd.get('role') };
+                const wData = { 
+                    id: editingItem?.type === 'worker' ? editingItem.item.id : `W${Date.now()}`, 
+                    name: nName, 
+                    role: fd.get('role'),
+                    hourlyWage: parseFloat(fd.get('hourlyWage')) || 0
+                };
                 setData(prev => {
                     let trans = prev.transactions;
                     if (editingItem && oName !== nName) trans = trans.map(t => t.worker === oName ? { ...t, worker: nName } : t);
                     return { ...prev, workers: editingItem?.type === 'worker' ? prev.workers.map(w => w.id === wData.id ? wData : w) : [...prev.workers, wData], transactions: trans };
                 });
-                setShowWorkerModal(false); setEditingItem(null);
+                closeAllModals();
+            };
+
+            const saveAttendance = (e) => {
+                e.preventDefault();
+                const fd = new FormData(e.target);
+                const workerName = fd.get('worker');
+                const projectName = fd.get('project');
+                const date = fd.get('date');
+                const timeIn = fd.get('timeIn');
+                const timeOut = fd.get('timeOut');
+
+                const worker = data.workers.find(w => w.name === workerName);
+                if (!worker) return;
+
+                const start = new Date(`2000-01-01T${timeIn}`);
+                const end = new Date(`2000-01-01T${timeOut}`);
+                let diff = (end - start) / 1000 / 60 / 60; 
+                if (diff < 0) diff += 24; 
+
+                const wage = worker.hourlyWage || 0;
+                const earned = parseFloat((diff * wage).toFixed(2));
+
+                const tData = {
+                    id: Date.now(),
+                    date: date,
+                    description: `Wages: ${workerName} (${diff.toFixed(2)}hrs @ £${wage}/hr)`,
+                    category: 'Wages',
+                    project: projectName,
+                    worker: workerName,
+                    received: earned,
+                    paid: 0
+                };
+
+                setData(prev => ({ ...prev, transactions: [tData, ...prev.transactions] }));
+                closeAllModals();
+            };
+
+            const deleteEntity = (type, id) => {
+                if(!confirm(`Delete this ${type}?`)) return;
+                setData(prev => {
+                    if (type === 'transaction') return { ...prev, transactions: prev.transactions.filter(t => t.id !== id) };
+                    if (type === 'project') return { ...prev, projects: prev.projects.filter(p => p.id !== id) };
+                    if (type === 'worker') return { ...prev, workers: prev.workers.filter(w => w.id !== id) };
+                    return prev;
+                });
             };
 
             const SidebarItem = ({ id, icon: Icon, label }) => (
@@ -307,7 +363,7 @@
                         <div className="flex flex-col h-full">
                             <div className="flex items-center gap-4 mb-14 px-2">
                                 <div className="bg-indigo-600 p-3 rounded-2xl text-white shadow-2xl shadow-indigo-100"><Icons.TrendingUp size={28} /></div>
-                                <div><h1 className="text-2xl font-black tracking-tighter text-slate-800 leading-none">Console</h1><p className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-400 mt-1">Insights</p></div>
+                                <div><h1 className="text-2xl font-black tracking-tighter text-slate-800 leading-none">{APP_TITLE.split(' ')[0]}</h1><p className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-400 mt-1">{APP_TITLE.split(' ')[1]}</p></div>
                             </div>
                             <nav className="flex-1 space-y-4">
                                 <SidebarItem id="dashboard" icon={Icons.LayoutDashboard} label="Overview" />
@@ -323,7 +379,7 @@
                                     <div className="bg-card-icon text-white opacity-[0.3] absolute -right-6 -bottom-6 rotate-12 scale-150 group-hover:scale-[1.8] transition-transform duration-500"><Icons.PlusCircle size={100} /></div>
                                     <div className="relative z-10 flex items-center gap-3"><Icons.PlusCircle size={20} /><span>Quick Entry</span></div>
                                 </button>
-                                <button onClick={() => { if(confirm("Purge data?")) setData(INITIAL_STATE); }} className="w-full text-[10px] uppercase font-black text-slate-300 hover:text-red-500 py-6 transition-colors">Clear Local Data</button>
+                                <button onClick={() => { if(confirm("Purge data?")) setData(INITIAL_STATE); }} className="w-full text-[10px] uppercase font-black text-slate-300 hover:text-red-500 py-6 transition-colors">Reset Local Cache</button>
                             </div>
                         </div>
                     </aside>
@@ -463,7 +519,10 @@
                                     <div className="space-y-16 animate-in">
                                         <header className="flex justify-between items-end relative overflow-hidden group">
                                             <div className="space-y-4"><h2 className="text-7xl font-thin-heading text-slate-800 tracking-tighter">Portfolio</h2><p className="text-slate-400 font-medium tracking-wide uppercase text-[11px] flex items-center gap-2"><span className="w-8 h-px bg-slate-200"></span>Operational Profit Centers</p></div>
-                                            <button onClick={() => { setEditingItem(null); setShowProjectModal(true); }} className="bg-slate-900 text-white px-10 py-6 rounded-[32px] font-black text-xs uppercase tracking-widest shadow-2xl active:scale-95 transition-all">Initialize Project</button>
+                                            <div className="flex gap-4">
+                                                <button onClick={() => { setEditingItem(null); setShowAttendanceModal(true); }} className="bg-indigo-50 text-indigo-600 px-8 py-5 rounded-[24px] font-black text-xs uppercase tracking-widest shadow-sm hover:bg-indigo-100 transition-all flex items-center gap-2"><Icons.Clock size={16} /> Log Attendance</button>
+                                                <button onClick={() => { setEditingItem(null); setShowProjectModal(true); }} className="bg-slate-900 text-white px-10 py-6 rounded-[32px] font-black text-xs uppercase tracking-widest shadow-2xl active:scale-95 transition-all">Initialize Project</button>
+                                            </div>
                                         </header>
                                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">{data.projects.map(p => { 
                                             const rec = data.transactions.filter(t => t.project === p.name).reduce((acc, t) => acc + (parseFloat(t.received) || 0), 0); 
@@ -477,13 +536,14 @@
                                     <div className="space-y-16 animate-in">
                                         <header className="flex justify-between items-end relative overflow-hidden group">
                                             <div className="space-y-4"><h2 className="text-7xl font-thin-heading text-slate-800 tracking-tighter">The Hub</h2><p className="text-slate-400 font-medium tracking-wide uppercase text-[11px] flex items-center gap-2"><span className="w-8 h-px bg-slate-200"></span>Financial Identity Management</p></div>
+                                            <div className="bg-card-icon text-indigo-600 opacity-[0.03] absolute -left-20 top-0 rotate-45"><Icons.Users size={300} /></div>
                                             <button onClick={() => { setEditingItem(null); setShowWorkerModal(true); }} className="bg-slate-900 text-white px-10 py-6 rounded-[32px] font-black text-xs uppercase tracking-widest shadow-2xl active:scale-95 transition-all">Register Identity</button>
                                         </header>
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-12">{data.workers.map(w => { 
                                             const ern = data.transactions.filter(t => t.worker === w.name).reduce((acc, t) => acc + (parseFloat(t.received) || 0), 0); 
                                             const pd = data.transactions.filter(t => t.worker === w.name).reduce((acc, t) => acc + (parseFloat(t.paid) || 0), 0); 
                                             const bal = ern - pd; 
-                                            return (<div key={w.id} className="bg-white p-14 rounded-[64px] border border-slate-100 shadow-sm flex items-center gap-12 relative group hover:border-indigo-100 hover:shadow-2xl transition-all card-hover overflow-hidden"><div className="bg-card-icon text-indigo-600 opacity-[0.1]"><Icons.Users size={220} /></div><div className="absolute top-12 right-12 flex gap-3 opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={() => { setEditingItem({type: 'worker', item: w}); setShowWorkerModal(true); }} className="p-3 text-slate-400 hover:text-indigo-600 transition-colors"><Icons.Pencil size={20} /></button><button onClick={() => deleteEntity('worker', w.id)} className="p-3 text-slate-400 hover:text-rose-600 transition-colors"><Icons.Trash2 size={20} /></button></div><div className="w-28 h-28 bg-slate-900 text-white rounded-[40px] flex items-center justify-center font-black text-5xl shadow-2xl shadow-indigo-100">{w.name[0]}</div><div className="flex-1 space-y-3 relative z-10"><h3 className="text-4xl font-light-heading text-slate-800 tracking-tight leading-none">{w.name}</h3><p className="text-[11px] font-black text-indigo-500 uppercase tracking-[0.3em]">{w.role}</p></div><div className="text-right relative z-10"><div className={`text-5xl font-thin-heading ${bal > 0 ? 'text-orange-500' : 'text-emerald-500'}`}>£{Math.abs(bal).toLocaleString()}</div><div className="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em] mt-2">{bal > 0 ? 'Pending Pay' : 'Account Cleared'}</div></div></div>);})}</div>
+                                            return (<div key={w.id} className="bg-white p-14 rounded-[64px] border border-slate-100 shadow-sm flex items-center gap-12 relative group hover:border-indigo-100 hover:shadow-2xl transition-all card-hover overflow-hidden"><div className="bg-card-icon text-indigo-600 opacity-[0.1]"><Icons.Users size={220} /></div><div className="absolute top-12 right-12 flex gap-3 opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={() => { setEditingItem({type: 'worker', item: w}); setShowWorkerModal(true); }} className="p-3 text-slate-400 hover:text-indigo-600 transition-colors"><Icons.Pencil size={20} /></button><button onClick={() => deleteEntity('worker', w.id)} className="p-3 text-slate-400 hover:text-rose-600 transition-colors"><Icons.Trash2 size={20} /></button></div><div className="w-28 h-28 bg-slate-900 text-white rounded-[40px] flex items-center justify-center font-black text-5xl shadow-2xl shadow-indigo-100">{w.name[0]}</div><div className="flex-1 space-y-3 relative z-10"><h3 className="text-4xl font-light-heading text-slate-800 tracking-tight leading-none">{w.name}</h3><div className="flex items-center gap-3"><p className="text-[11px] font-black text-indigo-500 uppercase tracking-[0.3em]">{w.role}</p><span className="text-[10px] bg-indigo-50 text-indigo-600 px-2 py-1 rounded-lg font-bold">£{w.hourlyWage}/hr</span></div><div className="flex gap-10 mt-6 text-[10px] font-black uppercase tracking-widest"><div className="space-y-1"><p className="text-slate-300">Earnings</p><p className="text-slate-700">£{ern.toLocaleString()}</p></div><div className="space-y-1"><p className="text-slate-300">Disbursed</p><p className="text-slate-700">£{pd.toLocaleString()}</p></div></div></div><div className="text-right relative z-10"><div className={`text-5xl font-thin-heading ${bal > 0 ? 'text-orange-500' : 'text-emerald-500'}`}>£{Math.abs(bal).toLocaleString()}</div><div className="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em] mt-2">{bal > 0 ? 'Pending Pay' : 'Account Cleared'}</div></div></div>);})}</div>
                                     </div>
                                 )}
                             </div>
@@ -511,7 +571,7 @@
                                         </div>
                                         <div className="space-y-2"><label className="text-[10px] font-black uppercase text-slate-400 ml-1 tracking-widest">Description</label><input required name="description" placeholder="Specify particulars..." defaultValue={editingItem?.item?.description || ''} className="w-full px-8 py-5 border-2 border-slate-50 bg-slate-50 rounded-[28px] font-bold outline-none focus:bg-white focus:border-indigo-100 transition-all text-lg" /></div>
                                         <div className="grid grid-cols-2 gap-8">
-                                            <div className="space-y-2"><label className="text-[10px] font-black uppercase text-slate-400 ml-1 tracking-widest">Job Link</label><select name="project" defaultValue={editingItem?.item?.project || 'General'} className="w-full px-8 py-5 border-2 border-slate-50 bg-slate-50 rounded-[28px] font-bold outline-none focus:bg-white focus:border-indigo-100 transition-all uppercase text-[11px] tracking-widest"><option value="General">General Business</option>{data.projects.map(p => <option key={p.id} value={p.name}>{p.name}</option>)}</select></div>
+                                            <div className="space-y-2"><label className="text-[10px] font-black uppercase text-slate-400 ml-1 tracking-widest">Job Link</label><select name="project" defaultValue={editingItem?.item?.project || 'General'} className="w-full px-8 py-5 border-2 border-slate-50 bg-slate-50 rounded-[28px] font-bold outline-none focus:bg-white focus:border-indigo-100 transition-all uppercase text-[11px] tracking-widest"><option value="General">Business Operations</option>{data.projects.map(p => <option key={p.id} value={p.name}>{p.name}</option>)}</select></div>
                                             <div className="space-y-2"><label className="text-[10px] font-black uppercase text-slate-400 ml-1 tracking-widest">Worker</label><select name="worker" defaultValue={editingItem?.item?.worker || ''} className="w-full px-8 py-5 border-2 border-slate-50 bg-slate-50 rounded-[28px] font-bold outline-none focus:bg-white focus:border-indigo-100 transition-all uppercase text-[11px] tracking-widest"><option value="">Internal Staff</option>{data.workers.map(w => <option key={w.id} value={w.name}>{w.name}</option>)}</select></div>
                                         </div>
                                         <div className="grid grid-cols-2 gap-8">
@@ -559,16 +619,44 @@
                     {showWorkerModal && (
                         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-3xl flex items-center justify-center z-50 p-6">
                             <div className="bg-white w-full max-w-xl rounded-[64px] p-16 shadow-2xl animate-in">
-                                <h3 className="text-4xl font-thin-heading mb-12 text-slate-800 uppercase tracking-tighter">Identity Management</h3>
+                                <h3 className="text-4xl font-thin-heading mb-12 text-slate-800 uppercase tracking-tighter">Staff Config</h3>
                                 <form onSubmit={saveWorker} className="space-y-8">
-                                    <div className="space-y-2"><label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Legal Name</label><input required name="name" defaultValue={editingItem?.item?.name || ''} placeholder="Full Name" className="w-full px-8 py-6 border-2 border-slate-50 bg-slate-50 rounded-[32px] font-bold outline-none focus:bg-white focus:border-indigo-100 transition-all text-xl" /></div>
-                                    <div className="space-y-2"><label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Trade/Role</label><input required name="role" defaultValue={editingItem?.item?.role || ''} placeholder="e.g. Lead Builder" className="w-full px-8 py-6 border-2 border-slate-50 bg-slate-50 rounded-[32px] font-bold outline-none focus:bg-white focus:border-indigo-100 transition-all text-xl" /></div>
+                                    <div className="space-y-2"><label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Full Legal Name</label><input required name="name" defaultValue={editingItem?.item?.name || ''} placeholder="Name" className="w-full px-8 py-6 border-2 border-slate-50 bg-slate-50 rounded-[32px] font-bold outline-none focus:bg-white focus:border-indigo-100 transition-all text-xl" /></div>
+                                    <div className="space-y-2"><label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Designation</label><input required name="role" defaultValue={editingItem?.item?.role || ''} placeholder="e.g. Lead Builder" className="w-full px-8 py-6 border-2 border-slate-50 bg-slate-50 rounded-[32px] font-bold outline-none focus:bg-white focus:border-indigo-100 transition-all text-xl" /></div>
+                                    <div className="space-y-2"><label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Hourly Wage (£)</label><input required name="hourlyWage" type="number" defaultValue={editingItem?.item?.hourlyWage || ''} placeholder="0.00" className="w-full px-8 py-6 border-2 border-slate-50 bg-slate-50 rounded-[32px] font-bold outline-none focus:bg-white focus:border-indigo-100 transition-all text-xl" /></div>
                                     <div className="flex gap-4 pt-6">
                                         <button type="button" onClick={closeAllModals} className="flex-1 py-7 bg-slate-100 text-slate-400 rounded-[32px] font-black uppercase text-xs tracking-widest transition-all hover:bg-slate-200">
                                             Cancel <span className="shortcut-hint">(Esc)</span>
                                         </button>
                                         <button type="submit" className="flex-[2] py-7 bg-slate-900 text-white rounded-[32px] font-black text-xs uppercase tracking-widest hover:bg-indigo-600 transition-all shadow-xl">
                                             Sync <span className="shortcut-hint">(Ctrl + Enter)</span>
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    )}
+
+                    {showAttendanceModal && (
+                        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-3xl flex items-center justify-center z-50 p-6">
+                            <div className="bg-white w-full max-w-xl rounded-[64px] p-16 shadow-2xl animate-in">
+                                <h3 className="text-4xl font-thin-heading mb-12 text-slate-800 uppercase tracking-tighter">Attendance Log</h3>
+                                <form onSubmit={saveAttendance} className="space-y-8">
+                                    <div className="grid grid-cols-2 gap-8">
+                                        <div className="space-y-2"><label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Worker</label><select name="worker" className="w-full px-8 py-6 border-2 border-slate-50 bg-slate-50 rounded-[32px] font-bold outline-none focus:bg-white focus:border-indigo-100 transition-all uppercase text-[11px] tracking-widest">{data.workers.map(w => <option key={w.id} value={w.name}>{w.name}</option>)}</select></div>
+                                        <div className="space-y-2"><label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Project</label><select name="project" className="w-full px-8 py-6 border-2 border-slate-50 bg-slate-50 rounded-[32px] font-bold outline-none focus:bg-white focus:border-indigo-100 transition-all uppercase text-[11px] tracking-widest">{data.projects.map(p => <option key={p.id} value={p.name}>{p.name}</option>)}</select></div>
+                                    </div>
+                                    <div className="space-y-2"><label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Date</label><input required name="date" type="date" defaultValue={new Date().toISOString().split('T')[0]} className="w-full px-8 py-6 border-2 border-slate-50 bg-slate-50 rounded-[32px] font-bold outline-none focus:bg-white focus:border-indigo-100 transition-all" /></div>
+                                    <div className="grid grid-cols-2 gap-8">
+                                        <div className="space-y-2"><label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Check In</label><input required name="timeIn" type="time" className="w-full px-8 py-6 border-2 border-slate-50 bg-slate-50 rounded-[32px] font-bold outline-none focus:bg-white focus:border-indigo-100 transition-all" /></div>
+                                        <div className="space-y-2"><label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Check Out</label><input required name="timeOut" type="time" className="w-full px-8 py-6 border-2 border-slate-50 bg-slate-50 rounded-[32px] font-bold outline-none focus:bg-white focus:border-indigo-100 transition-all" /></div>
+                                    </div>
+                                    <div className="flex gap-4 pt-6">
+                                        <button type="button" onClick={closeAllModals} className="flex-1 py-7 bg-slate-100 text-slate-400 rounded-[32px] font-black uppercase text-xs tracking-widest transition-all hover:bg-slate-200">
+                                            Cancel <span className="shortcut-hint">(Esc)</span>
+                                        </button>
+                                        <button type="submit" className="flex-[2] py-7 bg-indigo-600 text-white rounded-[32px] font-black text-xs uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-xl">
+                                            Log Hours <span className="shortcut-hint">(Ctrl + Enter)</span>
                                         </button>
                                     </div>
                                 </form>
