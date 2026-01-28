@@ -116,7 +116,9 @@
             PieChart: (p) => <Icon {...p} path="M21.21 15.89A10 10 0 1 1 8 2.83M22 12A10 10 0 0 0 12 2v10z" />,
             Menu: (p) => <Icon {...p} path="M3 12h18M3 6h18M3 18h18" />,
             Activity: (p) => <Icon {...p} path="M22 12h-4l-3 9L9 3l-3 9H2" />,
-            Clock: (p) => <Icon {...p} path="M12 6v6l4 2 M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z" />
+            Clock: (p) => <Icon {...p} path="M12 6v6l4 2 M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z" />,
+            Calendar: (p) => <Icon {...p} path="M19 4H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z M16 2v4 M8 2v4 M3 10h18" />,
+            ChevronLeft: (p) => <Icon {...p} path="m15 18-6-6 6-6" />
         };
 
         const apiKey = ""; 
@@ -177,6 +179,10 @@
             const [showProjectModal, setShowProjectModal] = useState(false);
             const [showWorkerModal, setShowWorkerModal] = useState(false);
             const [showAttendanceModal, setShowAttendanceModal] = useState(false);
+            const [showHistoryModal, setShowHistoryModal] = useState(false);
+            const [historyTarget, setHistoryTarget] = useState(null); // { type: 'worker' | 'project', name: '' }
+            const [historyDate, setHistoryDate] = useState(new Date());
+
             const [editingItem, setEditingItem] = useState(null); 
             const [searchQuery, setSearchQuery] = useState('');
             const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -198,10 +204,10 @@
                 };
                 window.addEventListener('keydown', handleKeys);
                 return () => window.removeEventListener('keydown', handleKeys);
-            }, [showAddModal, showProjectModal, showWorkerModal, showAttendanceModal]);
+            }, [showAddModal, showProjectModal, showWorkerModal, showAttendanceModal, showHistoryModal]);
 
             const closeAllModals = () => {
-                setShowAddModal(false); setShowProjectModal(false); setShowWorkerModal(false); setShowAttendanceModal(false); setEditingItem(null); setRawEntryText("");
+                setShowAddModal(false); setShowProjectModal(false); setShowWorkerModal(false); setShowAttendanceModal(false); setShowHistoryModal(false); setEditingItem(null); setRawEntryText(""); setHistoryTarget(null);
             };
 
             const stats = useMemo(() => {
@@ -347,6 +353,41 @@
                     if (type === 'worker') return { ...prev, workers: prev.workers.filter(w => w.id !== id) };
                     return prev;
                 });
+            };
+            
+            const openHistoryModal = (type, name) => {
+                setHistoryTarget({ type, name });
+                setHistoryDate(new Date());
+                setShowHistoryModal(true);
+            };
+
+            const getHistoryData = () => {
+                if (!historyTarget) return [];
+                const month = historyDate.getMonth() + 1;
+                const year = historyDate.getFullYear();
+                
+                return data.transactions.filter(t => {
+                    const tDate = new Date(t.date);
+                    const isMonthMatch = (tDate.getMonth() + 1) === month && tDate.getFullYear() === year;
+                    const isWage = t.category === 'Wages' && t.description.includes('hrs @');
+                    
+                    if (historyTarget.type === 'worker') {
+                        return isMonthMatch && isWage && t.worker === historyTarget.name;
+                    } else {
+                        return isMonthMatch && isWage && t.project === historyTarget.name;
+                    }
+                }).map(t => {
+                    // Extract times/hours from description if available in format "Wages: Name (X.XXhrs @ ...)"
+                    const hoursMatch = t.description.match(/\(([\d.]+)hrs/);
+                    const hours = hoursMatch ? hoursMatch[1] : '?';
+                    return { ...t, hours };
+                });
+            };
+
+            const changeHistoryMonth = (delta) => {
+                const newDate = new Date(historyDate);
+                newDate.setMonth(newDate.getMonth() + delta);
+                setHistoryDate(newDate);
             };
 
             const SidebarItem = ({ id, icon: Icon, label }) => (
@@ -528,7 +569,14 @@
                                             const rec = data.transactions.filter(t => t.project === p.name).reduce((acc, t) => acc + (parseFloat(t.received) || 0), 0); 
                                             const exp = data.transactions.filter(t => t.project === p.name).reduce((acc, t) => acc + (parseFloat(t.paid) || 0), 0); 
                                             const bal = rec - exp; 
-                                            return (<div key={p.id} className="bg-white p-12 rounded-[56px] border border-slate-100 shadow-sm relative group hover:border-indigo-100 transition-all hover:shadow-2xl card-hover overflow-hidden"><div className="bg-card-icon text-indigo-600"><Icons.Briefcase size={220} /></div><div className="absolute top-10 right-10 flex gap-3 opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={() => { setEditingItem({type: 'project', item: p}); setShowProjectModal(true); }} className="p-3 bg-slate-50 text-slate-400 hover:text-indigo-600 rounded-2xl"><Icons.Pencil size={20} /></button><button onClick={() => deleteEntity('project', p.id)} className="p-3 bg-slate-50 text-slate-400 hover:text-rose-600 rounded-2xl"><Icons.Trash2 size={20} /></button></div><div className="mb-12"><div className="flex items-center gap-3 text-indigo-500 mb-3"><Icons.Briefcase size={16} /><span className="text-[11px] font-black uppercase tracking-[0.3em]">{p.id}</span></div><h3 className="text-4xl font-light-heading text-slate-800 leading-none">{p.name}</h3><p className="text-[10px] text-slate-400 font-black mt-4 uppercase tracking-[0.4em]">{p.client}</p></div><div className="space-y-8"><div className="grid grid-cols-2 text-[11px] font-black uppercase tracking-widest"><div className="space-y-2"><p className="text-slate-300">Contract</p><p className="text-slate-800 text-lg">£{p.quote.toLocaleString()}</p></div><div className="space-y-2 text-right"><p className="text-slate-300">Received</p><p className="text-emerald-500 text-lg">£{rec.toLocaleString()}</p></div></div><div className="bg-slate-50/50 p-8 rounded-[36px] border border-slate-100"><div className="flex justify-between mb-4 text-[11px] font-black uppercase tracking-widest text-slate-400"><span>Realized P/L</span><span className={bal >= 0 ? 'text-indigo-600' : 'text-rose-600'}>£{bal.toLocaleString()}</span></div><div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden shadow-inner"><div className="h-full bg-indigo-500 transition-all duration-1000 shadow-xl" style={{ width: `${Math.min(100, (rec/p.quote)*100)}%` }}></div></div></div></div></div>);})}</div>
+                                            return (<div key={p.id} className="bg-white p-12 rounded-[56px] border border-slate-100 shadow-sm relative group hover:border-indigo-100 transition-all hover:shadow-2xl card-hover overflow-hidden">
+                                                <div className="bg-card-icon text-indigo-600"><Icons.Briefcase size={220} /></div>
+                                                <div className="absolute top-10 right-10 flex gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <button onClick={() => openHistoryModal('project', p.name)} className="p-3 bg-slate-50 text-slate-400 hover:text-emerald-600 rounded-2xl"><Icons.Calendar size={20} /></button>
+                                                    <button onClick={() => { setEditingItem({type: 'project', item: p}); setShowProjectModal(true); }} className="p-3 bg-slate-50 text-slate-400 hover:text-indigo-600 rounded-2xl"><Icons.Pencil size={20} /></button>
+                                                    <button onClick={() => deleteEntity('project', p.id)} className="p-3 bg-slate-50 text-slate-400 hover:text-rose-600 rounded-2xl"><Icons.Trash2 size={20} /></button>
+                                                </div>
+                                                <div className="mb-12"><div className="flex items-center gap-3 text-indigo-500 mb-3"><Icons.Briefcase size={16} /><span className="text-[11px] font-black uppercase tracking-[0.3em]">{p.id}</span></div><h3 className="text-4xl font-light-heading text-slate-800 leading-none">{p.name}</h3><p className="text-[10px] text-slate-400 font-black mt-4 uppercase tracking-[0.4em]">{p.client}</p></div><div className="space-y-8"><div className="grid grid-cols-2 text-[11px] font-black uppercase tracking-widest"><div className="space-y-2"><p className="text-slate-300">Contract</p><p className="text-slate-800 text-lg">£{p.quote.toLocaleString()}</p></div><div className="space-y-2 text-right"><p className="text-slate-300">Received</p><p className="text-emerald-500 text-lg">£{rec.toLocaleString()}</p></div></div><div className="bg-slate-50/50 p-8 rounded-[36px] border border-slate-100"><div className="flex justify-between mb-4 text-[11px] font-black uppercase tracking-widest text-slate-400"><span>Realized P/L</span><span className={bal >= 0 ? 'text-indigo-600' : 'text-rose-600'}>£{bal.toLocaleString()}</span></div><div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden shadow-inner"><div className="h-full bg-indigo-500 transition-all duration-1000 shadow-xl" style={{ width: `${Math.min(100, (rec/p.quote)*100)}%` }}></div></div></div></div></div>);})}</div>
                                     </div>
                                 )}
 
@@ -543,7 +591,15 @@
                                             const ern = data.transactions.filter(t => t.worker === w.name).reduce((acc, t) => acc + (parseFloat(t.received) || 0), 0); 
                                             const pd = data.transactions.filter(t => t.worker === w.name).reduce((acc, t) => acc + (parseFloat(t.paid) || 0), 0); 
                                             const bal = ern - pd; 
-                                            return (<div key={w.id} className="bg-white p-14 rounded-[64px] border border-slate-100 shadow-sm flex items-center gap-12 relative group hover:border-indigo-100 hover:shadow-2xl transition-all card-hover overflow-hidden"><div className="bg-card-icon text-indigo-600 opacity-[0.1]"><Icons.Users size={220} /></div><div className="absolute top-12 right-12 flex gap-3 opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={() => { setEditingItem({type: 'worker', item: w}); setShowWorkerModal(true); }} className="p-3 text-slate-400 hover:text-indigo-600 transition-colors"><Icons.Pencil size={20} /></button><button onClick={() => deleteEntity('worker', w.id)} className="p-3 text-slate-400 hover:text-rose-600 transition-colors"><Icons.Trash2 size={20} /></button></div><div className="w-28 h-28 bg-slate-900 text-white rounded-[40px] flex items-center justify-center font-black text-5xl shadow-2xl shadow-indigo-100">{w.name[0]}</div><div className="flex-1 space-y-3 relative z-10"><h3 className="text-4xl font-light-heading text-slate-800 tracking-tight leading-none">{w.name}</h3><div className="flex items-center gap-3"><p className="text-[11px] font-black text-indigo-500 uppercase tracking-[0.3em]">{w.role}</p><span className="text-[10px] bg-indigo-50 text-indigo-600 px-2 py-1 rounded-lg font-bold">£{w.hourlyWage}/hr</span></div><div className="flex gap-10 mt-6 text-[10px] font-black uppercase tracking-widest"><div className="space-y-1"><p className="text-slate-300">Earnings</p><p className="text-slate-700">£{ern.toLocaleString()}</p></div><div className="space-y-1"><p className="text-slate-300">Disbursed</p><p className="text-slate-700">£{pd.toLocaleString()}</p></div></div></div><div className="text-right relative z-10"><div className={`text-5xl font-thin-heading ${bal > 0 ? 'text-orange-500' : 'text-emerald-500'}`}>£{Math.abs(bal).toLocaleString()}</div><div className="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em] mt-2">{bal > 0 ? 'Pending Pay' : 'Account Cleared'}</div></div></div>);})}</div>
+                                            return (<div key={w.id} className="bg-white p-14 rounded-[64px] border border-slate-100 shadow-sm flex items-center gap-12 relative group hover:border-indigo-100 hover:shadow-2xl transition-all card-hover overflow-hidden">
+                                                <div className="bg-card-icon text-indigo-600 opacity-[0.1]"><Icons.Users size={220} /></div>
+                                                <div className="absolute top-12 right-12 flex gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <button onClick={() => openHistoryModal('worker', w.name)} className="p-3 text-slate-400 hover:text-emerald-600 transition-colors"><Icons.Calendar size={20} /></button>
+                                                    <button onClick={() => { setEditingItem({type: 'worker', item: w}); setShowWorkerModal(true); }} className="p-3 text-slate-400 hover:text-indigo-600 transition-colors"><Icons.Pencil size={20} /></button>
+                                                    <button onClick={() => deleteEntity('worker', w.id)} className="p-3 text-slate-400 hover:text-rose-600 transition-colors"><Icons.Trash2 size={20} /></button>
+                                                </div>
+                                                <div className="w-28 h-28 bg-slate-900 text-white rounded-[40px] flex items-center justify-center font-black text-5xl shadow-2xl shadow-indigo-100">{w.name[0]}</div>
+                                                <div className="flex-1 space-y-3 relative z-10"><h3 className="text-4xl font-light-heading text-slate-800 tracking-tight leading-none">{w.name}</h3><div className="flex items-center gap-3"><p className="text-[11px] font-black text-indigo-500 uppercase tracking-[0.3em]">{w.role}</p><span className="text-[10px] bg-indigo-50 text-indigo-600 px-2 py-1 rounded-lg font-bold">£{w.hourlyWage}/hr</span></div><div className="flex gap-10 mt-6 text-[10px] font-black uppercase tracking-widest"><div className="space-y-1"><p className="text-slate-300">Earnings</p><p className="text-slate-700">£{ern.toLocaleString()}</p></div><div className="space-y-1"><p className="text-slate-300">Disbursed</p><p className="text-slate-700">£{pd.toLocaleString()}</p></div></div></div><div className="text-right relative z-10"><div className={`text-5xl font-thin-heading ${bal > 0 ? 'text-orange-500' : 'text-emerald-500'}`}>£{Math.abs(bal).toLocaleString()}</div><div className="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em] mt-2">{bal > 0 ? 'Pending Pay' : 'Account Cleared'}</div></div></div>);})}</div>
                                     </div>
                                 )}
                             </div>
@@ -575,8 +631,8 @@
                                             <div className="space-y-2"><label className="text-[10px] font-black uppercase text-slate-400 ml-1 tracking-widest">Worker</label><select name="worker" defaultValue={editingItem?.item?.worker || ''} className="w-full px-8 py-5 border-2 border-slate-50 bg-slate-50 rounded-[28px] font-bold outline-none focus:bg-white focus:border-indigo-100 transition-all uppercase text-[11px] tracking-widest"><option value="">Internal Staff</option>{data.workers.map(w => <option key={w.id} value={w.name}>{w.name}</option>)}</select></div>
                                         </div>
                                         <div className="grid grid-cols-2 gap-8">
-                                            <div className="space-y-2"><label className="text-[10px] font-black uppercase text-emerald-500 ml-1 tracking-[0.4em]">Cash In (£)</label><input name="received" type="number" step="0.01" placeholder="0.00" defaultValue={editingItem?.item?.received || ''} className="w-full px-8 py-5 border-2 border-emerald-50 bg-emerald-50/30 rounded-[28px] font-black text-emerald-600 outline-none focus:bg-white text-3xl" /></div>
-                                            <div className="space-y-2"><label className="text-[10px] font-black uppercase text-rose-500 ml-1 tracking-[0.4em]">Cash Out (£)</label><input name="paid" type="number" step="0.01" placeholder="0.00" defaultValue={editingItem?.item?.paid || ''} className="w-full px-8 py-5 border-2 border-rose-50 bg-rose-50/30 rounded-[28px] font-black text-rose-600 outline-none focus:bg-white text-3xl" /></div>
+                                            <div className="space-y-2"><label className="text-[10px] font-black uppercase text-emerald-500 ml-1 tracking-[0.4em]">Inflow (£)</label><input name="received" type="number" step="0.01" placeholder="0.00" defaultValue={editingItem?.item?.received || ''} className="w-full px-8 py-5 border-2 border-emerald-50 bg-emerald-50/30 rounded-[28px] font-black text-emerald-600 outline-none focus:bg-white text-3xl" /></div>
+                                            <div className="space-y-2"><label className="text-[10px] font-black uppercase text-rose-500 ml-1 tracking-[0.4em]">Outflow (£)</label><input name="paid" type="number" step="0.01" placeholder="0.00" defaultValue={editingItem?.item?.paid || ''} className="w-full px-8 py-5 border-2 border-rose-50 bg-rose-50/30 rounded-[28px] font-black text-rose-600 outline-none focus:bg-white text-3xl" /></div>
                                         </div>
                                         <div className="flex gap-4 pt-6">
                                             <button type="button" onClick={closeAllModals} className="flex-1 py-7 bg-slate-100 text-slate-400 rounded-[32px] font-black uppercase text-xs tracking-widest transition-all hover:bg-slate-200">
@@ -660,6 +716,45 @@
                                         </button>
                                     </div>
                                 </form>
+                            </div>
+                        </div>
+                    )}
+                    
+                    {/* Attendance History Modal */}
+                    {showHistoryModal && (
+                        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-3xl flex items-center justify-center z-50 p-6">
+                            <div className="bg-white w-full max-w-2xl rounded-[64px] p-12 shadow-2xl animate-in relative overflow-hidden">
+                                <div className="flex justify-between items-end mb-8">
+                                    <div className="space-y-2">
+                                        <h3 className="text-3xl font-thin-heading text-slate-800 tracking-tighter">Attendance History</h3>
+                                        <p className="text-[11px] font-black uppercase tracking-[0.3em] text-indigo-400">{historyTarget?.name}</p>
+                                    </div>
+                                    <div className="flex items-center gap-4">
+                                        <button onClick={() => changeHistoryMonth(-1)} className="p-3 bg-slate-50 rounded-xl hover:bg-indigo-50 hover:text-indigo-600 transition-all"><Icons.ChevronLeft size={16} className="rotate-180" /></button>
+                                        <span className="text-sm font-bold text-slate-600 w-32 text-center">{historyDate.toLocaleString('default', { month: 'long', year: 'numeric' })}</span>
+                                        <button onClick={() => changeHistoryMonth(1)} className="p-3 bg-slate-50 rounded-xl hover:bg-indigo-50 hover:text-indigo-600 transition-all"><Icons.ChevronLeft size={16} className="rotate-0" /></button>
+                                    </div>
+                                </div>
+                                <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
+                                    {getHistoryData().length > 0 ? getHistoryData().map((rec, i) => (
+                                        <div key={rec.id} className="p-5 border border-slate-100 rounded-3xl flex justify-between items-center hover:bg-slate-50 transition-colors">
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center font-black text-xs">{new Date(rec.date).getDate()}</div>
+                                                <div>
+                                                    <p className="text-xs font-bold text-slate-700">{historyTarget?.type === 'worker' ? rec.project : rec.worker}</p>
+                                                    <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wide">{rec.hours} Hrs Logged</p>
+                                                </div>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="text-sm font-black text-emerald-600">£{rec.received.toLocaleString()}</p>
+                                                <p className="text-[9px] text-slate-300 font-bold uppercase tracking-wider">Wage</p>
+                                            </div>
+                                        </div>
+                                    )) : (
+                                        <div className="p-10 text-center text-slate-300 font-medium text-sm border-2 border-dashed border-slate-100 rounded-3xl">No attendance records found for this period.</div>
+                                    )}
+                                </div>
+                                <button onClick={closeAllModals} className="absolute top-10 right-10 p-3 bg-slate-50 rounded-full text-slate-400 hover:text-rose-500 hover:bg-rose-50 transition-all"><Icons.X size={20} /></button>
                             </div>
                         </div>
                     )}
