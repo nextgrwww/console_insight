@@ -44,9 +44,6 @@
          * ------------------------------------------------------------------
          * CONFIGURATION FOR GITHUB HOSTING (ACTION REQUIRED)
          * ------------------------------------------------------------------
-         * To make this work on your own hosting, you must replace the values below.
-         * 1. Go to Firebase Console > Project Settings to get your config object.
-         * 2. Get your Gemini API Key from Google AI Studio.
          */
         
         // PASTE YOUR FIREBASE CONFIG HERE:
@@ -58,16 +55,6 @@
             messagingSenderId: "348391408766",
             appId: "1:348391408766:web:2d3845ab611946b57f042f"
         };
-
-        // const firebaseConfig = {
-        //     apiKey: "AIzaSyARx1Iyw6VzDI-_KT4YibnyjmY9ySAeqz4",
-        //     authDomain: "console-insights-8e335.firebaseapp.com",
-        //     projectId: "console-insights-8e335",
-        //     storageBucket: "console-insights-8e335.firebasestorage.app",
-        //     messagingSenderId: "348391408766",
-        //     appId: "1:348391408766:web:2d3845ab611946b57f042f",
-        //     measurementId: "G-YDG1EJ4QDR"
-        // };
 
         // PASTE YOUR GEMINI API KEY HERE:
         const YOUR_GEMINI_API_KEY = "AIzaSyDu4dx81S7p4foWc-iwe9bImi9KDVOuLP8";
@@ -92,12 +79,10 @@
             db = firebase.firestore();
         } catch (e) {
             console.error("Firebase Init Error:", e);
-            // Don't crash immediately, UI will handle auth failure
         }
         
-        // GLOBAL VARIABLES DEFINITION - CRITICAL FOR HOSTING
+        // GLOBAL VARIABLES DEFINITION
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        // Check both environment variable and the manual constant
         const apiKey = typeof __gemini_api_key !== 'undefined' ? __gemini_api_key : YOUR_GEMINI_API_KEY;
 
         const APP_TITLE = "Console Insights"; 
@@ -108,10 +93,11 @@
 
         document.title = APP_TITLE;
 
-        // Define callGemini in global scope to avoid ReferenceError
-        async function callGemini(prompt, systemInstruction = "Construction Auditor") {
+        // --- GLOBAL FUNCTION DEFINITION (FIX FOR REFERENCE ERROR) ---
+        // Attaching to window ensures it is available across all scopes
+        window.callGemini = async function(prompt, systemInstruction = "Construction Auditor") {
             if (!apiKey || apiKey === "YOUR_GEMINI_API_KEY") {
-                console.error("Gemini API Key is missing. Please add it to the configuration at the top of the file.");
+                console.error("Gemini API Key is missing.");
                 return "Error: API Key missing in code.";
             }
 
@@ -135,7 +121,7 @@
                 console.error("AI Service Error:", error);
                 return "AI service error. Check console."; 
             }
-        }
+        };
 
         // --- Internal Icons ---
         const Icon = ({ path, size = 20, className = "" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" className={className}><path d={path} /></svg>;
@@ -316,7 +302,8 @@
             const runAiAudit = async () => {
                 setIsAiAuditing(true);
                 const prompt = `Review: In £${stats.income}, Out £${stats.expenses}. Quotes £${stats.totalQuotes}. 3 sentences maximum identifying trends.`;
-                const res = await callGemini(prompt);
+                // Use window.callGemini to avoid ReferenceError in built version
+                const res = await window.callGemini(prompt);
                 setAiAuditResult(res);
                 setIsAiAuditing(false);
             };
@@ -324,7 +311,8 @@
             const smartParseEntry = async () => {
                 if (!rawEntryText.trim()) return;
                 setIsParsing(true);
-                const res = await callGemini(`Parse: "${rawEntryText}". JSON fields: date, description, category, project, worker, received, paid.`);
+                // Use window.callGemini to avoid ReferenceError in built version
+                const res = await window.callGemini(`Parse: "${rawEntryText}". JSON fields: date, description, category, project, worker, received, paid.`);
                 try {
                     const parsed = JSON.parse(res.replace(/```json|```/g, "").trim());
                     const form = document.getElementById('unified-entry-form');
