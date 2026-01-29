@@ -95,7 +95,9 @@
             // Don't crash immediately, UI will handle auth failure
         }
         
+        // GLOBAL VARIABLES DEFINITION - CRITICAL FOR HOSTING
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        // Check both environment variable and the manual constant
         const apiKey = typeof __gemini_api_key !== 'undefined' ? __gemini_api_key : YOUR_GEMINI_API_KEY;
 
         const APP_TITLE = "Console Insights"; 
@@ -106,11 +108,40 @@
 
         document.title = APP_TITLE;
 
+        // Define callGemini in global scope to avoid ReferenceError
+        async function callGemini(prompt, systemInstruction = "Construction Auditor") {
+            if (!apiKey || apiKey === "YOUR_GEMINI_API_KEY") {
+                console.error("Gemini API Key is missing. Please add it to the configuration at the top of the file.");
+                return "Error: API Key missing in code.";
+            }
+
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+            const payload = {
+                contents: [{ parts: [{ text: prompt }] }],
+                systemInstruction: { parts: [{ text: systemInstruction }] }
+            };
+            try {
+                const response = await fetch(url, { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify(payload) 
+                });
+                
+                if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+                
+                const result = await response.json();
+                return result.candidates?.[0]?.content?.parts?.[0]?.text || "No insights found.";
+            } catch (error) { 
+                console.error("AI Service Error:", error);
+                return "AI service error. Check console."; 
+            }
+        }
+
         // --- Internal Icons ---
         const Icon = ({ path, size = 20, className = "" }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" className={className}><path d={path} /></svg>;
         const Icons = {
             LayoutDashboard: (p) => <Icon {...p} path="M3 3h7v9H3zm11 0h7v5h-7zm0 9h7v9h-7zm-11 10h7v-7H3z" />,
-            Receipt: (p) => <Icon {...p} path="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1-2-1Z M16 8h-6 M16 12H8 M13 16H8" />,
+            Receipt: (p) => <Icon {...p} path="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1Z M16 8h-6 M16 12H8 M13 16H8" />,
             Users: (p) => <Icon {...p} path="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M9 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm13 14v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />,
             FolderKanban: (p) => <Icon {...p} path="M21 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-2 M3 7h18 M9 11v6 M15 11v6" />,
             TrendingUp: (p) => <Icon {...p} path="m22 7-8.5 8.5-5-5L2 17 M16 7h6v6" />,
