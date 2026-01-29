@@ -40,15 +40,66 @@
     <div id="root"></div>
 
     <script type="text/babel">
-        // --- FIREBASE CONFIGURATION ---
-        const firebaseConfig = JSON.parse(__firebase_config);
-        const app = firebase.initializeApp(firebaseConfig);
-        const auth = firebase.auth();
-        const db = firebase.firestore();
+        /**
+         * ------------------------------------------------------------------
+         * CONFIGURATION FOR GITHUB HOSTING (ACTION REQUIRED)
+         * ------------------------------------------------------------------
+         * To make this work on your own hosting, you must replace the values below.
+         * 1. Go to Firebase Console > Project Settings to get your config object.
+         * 2. Get your Gemini API Key from Google AI Studio.
+         */
+        
+        // PASTE YOUR FIREBASE CONFIG HERE:
+        const YOUR_FIREBASE_CONFIG = {
+            apiKey: "AIzaSyARx1Iyw6VzDI-_KT4YibnyjmY9ySAeqz4",
+            authDomain: "console-insights-8e335.firebaseapp.com",
+            projectId: "console-insights-8e335",
+            storageBucket: "console-insights-8e335.firebasestorage.app",
+            messagingSenderId: "348391408766",
+            appId: "1:348391408766:web:2d3845ab611946b57f042f"
+        };
+
+        // const firebaseConfig = {
+        //     apiKey: "AIzaSyARx1Iyw6VzDI-_KT4YibnyjmY9ySAeqz4",
+        //     authDomain: "console-insights-8e335.firebaseapp.com",
+        //     projectId: "console-insights-8e335",
+        //     storageBucket: "console-insights-8e335.firebasestorage.app",
+        //     messagingSenderId: "348391408766",
+        //     appId: "1:348391408766:web:2d3845ab611946b57f042f",
+        //     measurementId: "G-YDG1EJ4QDR"
+        // };
+
+        // PASTE YOUR GEMINI API KEY HERE:
+        const YOUR_GEMINI_API_KEY = "AIzaSyAoZYJfGFeQygQ7erOH9aw2HDs-ghsV4JQ";
+
+        // ------------------------------------------------------------------
+
+        // Handle Environment vs Local Hosting
+        let firebaseConfig;
+        try {
+            // Try to use environment variable first (for Canvas)
+            firebaseConfig = JSON.parse(__firebase_config); 
+        } catch (e) {
+            // Fallback to manual config (for GitHub/Local)
+            firebaseConfig = YOUR_FIREBASE_CONFIG;
+        }
+
+        // Initialize Firebase
+        let app, auth, db;
+        try {
+            app = firebase.initializeApp(firebaseConfig);
+            auth = firebase.auth();
+            db = firebase.firestore();
+        } catch (e) {
+            console.error("Firebase Init Error:", e);
+            // Don't crash immediately, UI will handle auth failure
+        }
+        
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const apiKey = typeof __gemini_api_key !== 'undefined' ? __gemini_api_key : YOUR_GEMINI_API_KEY;
 
         const APP_TITLE = "Console Insights"; 
-        const ACCESS_KEY = "admin123"; // Simple credential for platform access
+        const ACCESS_KEY = "admin123"; 
 
         const { useState, useEffect, useMemo } = React;
         const { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } = window.Recharts;
@@ -86,7 +137,6 @@
             Lock: (p) => <Icon {...p} path="M12 17a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm5-9h-1V6a4 4 0 0 0-8 0v2H7a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2z" />
         };
 
-        const apiKey = ""; 
         const CATEGORIES = ["Wages", "Building Material", "Fuel & Maintenance", "Office & Tools", "Loan", "Loan Repay", "Lettings", "Social Media", "Personal", "Refund", "Fine"];
         const PIE_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f43f5e', '#64748b', '#06b6d4', '#f97316'];
 
@@ -143,7 +193,7 @@
             const [isParsing, setIsParsing] = useState(false);
             const [rawEntryText, setRawEntryText] = useState("");
 
-            // --- Stats Calculation (Moved up to fix Hook Rule) ---
+            // --- Stats Calculation ---
             const stats = useMemo(() => {
                 const income = data.transactions.reduce((acc, t) => acc + (parseFloat(t.received) || 0), 0);
                 const expenses = data.transactions.reduce((acc, t) => acc + (parseFloat(t.paid) || 0), 0);
@@ -168,17 +218,22 @@
             // --- Authentication & Cloud Storage ---
             useEffect(() => {
                 const initAuth = async () => {
+                    // This handles environment specific auth (Canvas vs Local)
                     if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                        await auth.signInWithCustomToken(__initial_auth_token);
-                    } else {
-                        await auth.signInAnonymously();
+                        try {
+                            await auth.signInWithCustomToken(__initial_auth_token);
+                        } catch(e) { console.error("Token Auth Failed", e); }
+                    } else if (auth && typeof auth.signInAnonymously === 'function') {
+                         try {
+                             await auth.signInAnonymously();
+                         } catch(e) { console.warn("Anonymous Auth Failed (Expected if config is missing)", e); }
                     }
                 };
-                initAuth();
+                if(auth) initAuth();
             }, []);
 
             useEffect(() => {
-                if (!isLoggedIn) return;
+                if (!isLoggedIn || !db) return;
                 // Load data from Firestore
                 const loadData = async () => {
                     const user = auth.currentUser;
@@ -195,7 +250,7 @@
             }, [isLoggedIn]);
 
             useEffect(() => {
-                if (!isLoggedIn) return;
+                if (!isLoggedIn || !db) return;
                 // Save data to Firestore
                 const saveData = async () => {
                     const user = auth.currentUser;
@@ -226,6 +281,7 @@
                 setShowAddModal(false); setShowProjectModal(false); setShowWorkerModal(false); setShowAttendanceModal(false); setShowHistoryModal(false); setEditingItem(null); setRawEntryText(""); setHistoryTarget(null);
             };
 
+            // AI Features with manual API Key support
             const runAiAudit = async () => {
                 setIsAiAuditing(true);
                 const prompt = `Review: In £${stats.income}, Out £${stats.expenses}. Quotes £${stats.totalQuotes}. 3 sentences maximum identifying trends.`;
@@ -406,6 +462,7 @@
                                 <button type="submit" className="w-full py-5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-3xl font-black uppercase text-xs tracking-[0.2em] shadow-xl shadow-indigo-500/20 transition-all active:scale-95">Authenticate</button>
                             </form>
                             <p className="text-center mt-8 text-[10px] text-slate-500 font-medium">Cloud Sync Enabled • Secure Environment</p>
+                            {!firebaseConfig && <p className="text-center mt-2 text-[10px] text-rose-300 font-bold uppercase tracking-widest">Configuration Required</p>}
                         </div>
                     </div>
                 );
