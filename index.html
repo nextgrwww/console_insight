@@ -77,6 +77,10 @@
             app = firebase.initializeApp(firebaseConfig);
             auth = firebase.auth();
             db = firebase.firestore();
+            db.settings({
+                experimentalForceLongPolling: true, // Forces a more stable connection type
+                merge: true
+            });
         } catch (e) {
             console.error("Firebase Init Error:", e);
         }
@@ -84,7 +88,7 @@
         // GLOBAL VARIABLES DEFINITION
         // const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         const appId = 'console-insights-8e335';
-        
+
         const apiKey = typeof __gemini_api_key !== 'undefined' ? __gemini_api_key : YOUR_GEMINI_API_KEY;
 
         const APP_TITLE = "Console Insights"; 
