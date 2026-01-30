@@ -14,10 +14,7 @@
     <script src="https://unpkg.com/recharts@2.10.3/umd/Recharts.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-    <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <!-- Firebase SDK Removed -->
     
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&display=swap');
@@ -42,54 +39,16 @@
     <script type="text/babel">
         /**
          * ------------------------------------------------------------------
-         * CONFIGURATION FOR GITHUB HOSTING (ACTION REQUIRED)
+         * CONFIGURATION
          * ------------------------------------------------------------------
          */
         
-        // PASTE YOUR FIREBASE CONFIG HERE:
-        const YOUR_FIREBASE_CONFIG = {
-            apiKey: "AIzaSyARx1Iyw6VzDI-_KT4YibnyjmY9ySAeqz4",
-            authDomain: "console-insights-8e335.firebaseapp.com",
-            projectId: "console-insights-8e335",
-            storageBucket: "console-insights-8e335.firebasestorage.app",
-            messagingSenderId: "348391408766",
-            appId: "1:348391408766:web:2d3845ab611946b57f042f"
-        };
-
         // PASTE YOUR GEMINI API KEY HERE:
         const YOUR_GEMINI_API_KEY = "AIzaSyDu4dx81S7p4foWc-iwe9bImi9KDVOuLP8";
 
         // ------------------------------------------------------------------
-
-        // Handle Environment vs Local Hosting
-        let firebaseConfig;
-        try {
-            // Try to use environment variable first (for Canvas)
-            firebaseConfig = JSON.parse(__firebase_config); 
-        } catch (e) {
-            // Fallback to manual config (for GitHub/Local)
-            firebaseConfig = YOUR_FIREBASE_CONFIG;
-        }
-
-        // Initialize Firebase
-        let app, auth, db;
-        try {
-            app = firebase.initializeApp(firebaseConfig);
-            auth = firebase.auth();
-            db = firebase.firestore();
-            db.settings({
-                experimentalForceLongPolling: true, // Forces a more stable connection type
-                experimentalAutoDetectLongPolling: false, // This line resolves the conflict
-                merge: true
-            });
-        } catch (e) {
-            console.error("Firebase Init Error:", e);
-        }
         
         // GLOBAL VARIABLES DEFINITION
-        // const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const appId = 'console-insights-8e335';
-
         const apiKey = typeof __gemini_api_key !== 'undefined' ? __gemini_api_key : YOUR_GEMINI_API_KEY;
 
         const APP_TITLE = "Console Insights"; 
@@ -100,15 +59,14 @@
 
         document.title = APP_TITLE;
 
-        // --- GLOBAL FUNCTION DEFINITION (FIX FOR REFERENCE ERROR) ---
-        // Attaching to window ensures it is available across all scopes
+        // --- GLOBAL FUNCTION DEFINITION ---
         window.callGemini = async function(prompt, systemInstruction = "Construction Auditor") {
             if (!apiKey || apiKey === "YOUR_GEMINI_API_KEY") {
                 console.error("Gemini API Key is missing.");
                 return "Error: API Key missing in code.";
             }
 
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
             const payload = {
                 contents: [{ parts: [{ text: prompt }] }],
                 systemInstruction: { parts: [{ text: systemInstruction }] }
@@ -120,13 +78,18 @@
                     body: JSON.stringify(payload) 
                 });
                 
-                if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+                if (!response.ok) {
+                    if (response.status === 403) {
+                         throw new Error(`Access Denied (403). Ensure 'gemini-1.5-flash' is enabled and your API Key allows access from this domain.`);
+                    }
+                    throw new Error(`HTTP Error: ${response.status}`);
+                }
                 
                 const result = await response.json();
                 return result.candidates?.[0]?.content?.parts?.[0]?.text || "No insights found.";
             } catch (error) { 
                 console.error("AI Service Error:", error);
-                return "AI service error. Check console."; 
+                return `AI Service Error: ${error.message}`; 
             }
         };
 
@@ -239,49 +202,22 @@
                 return { income, expenses, balance: income - expenses, byCategory, totalQuotes, totalLiability, workerBalances };
             }, [data.transactions, data.projects, data.workers]);
 
-            // --- Authentication & Cloud Storage ---
+            // --- Local Storage Logic ---
             useEffect(() => {
-                const initAuth = async () => {
-                    // This handles environment specific auth (Canvas vs Local)
-                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                        try {
-                            await auth.signInWithCustomToken(__initial_auth_token);
-                        } catch(e) { console.error("Token Auth Failed", e); }
-                    } else if (auth && typeof auth.signInAnonymously === 'function') {
-                         try {
-                             await auth.signInAnonymously();
-                         } catch(e) { console.warn("Anonymous Auth Failed (Expected if config is missing)", e); }
+                if (!isLoggedIn) return;
+                try {
+                    const saved = localStorage.getItem('console_insights_data');
+                    if (saved) {
+                        setData(JSON.parse(saved));
                     }
-                };
-                if(auth) initAuth();
-            }, []);
-
-            useEffect(() => {
-                if (!isLoggedIn || !db) return;
-                // Load data from Firestore
-                const loadData = async () => {
-                    const user = auth.currentUser;
-                    if (!user) return;
-                    try {
-                        const docRef = db.collection('artifacts').doc(appId).collection('public').doc('data').collection('ledger').doc('main');
-                        const docSnap = await docRef.get();
-                        if (docSnap.exists) {
-                            setData(JSON.parse(docSnap.data().json));
-                        }
-                    } catch(e) { console.error("Load error", e); }
-                };
-                loadData();
+                } catch(e) { console.error("Load error", e); }
             }, [isLoggedIn]);
 
             useEffect(() => {
-                if (!isLoggedIn || !db) return;
-                // Save data to Firestore
-                const saveData = async () => {
-                    const user = auth.currentUser;
-                    if (!user) return;
+                if (!isLoggedIn) return;
+                const saveData = () => {
                     try {
-                        const docRef = db.collection('artifacts').doc(appId).collection('public').doc('data').collection('ledger').doc('main');
-                        await docRef.set({ json: JSON.stringify(data) });
+                        localStorage.setItem('console_insights_data', JSON.stringify(data));
                     } catch(e) { console.error("Save error", e); }
                 };
                 const timeoutId = setTimeout(saveData, 2000);
@@ -488,7 +424,6 @@
                                 <button type="submit" className="w-full py-5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-3xl font-black uppercase text-xs tracking-[0.2em] shadow-xl shadow-indigo-500/20 transition-all active:scale-95">Authenticate</button>
                             </form>
                             <p className="text-center mt-8 text-[10px] text-slate-500 font-medium">Cloud Sync Enabled • Secure Environment</p>
-                            {!firebaseConfig && <p className="text-center mt-2 text-[10px] text-rose-300 font-bold uppercase tracking-widest">Configuration Required</p>}
                         </div>
                     </div>
                 );
