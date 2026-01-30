@@ -79,6 +79,7 @@
             db = firebase.firestore();
             db.settings({
                 experimentalForceLongPolling: true, // Forces a more stable connection type
+                experimentalAutoDetectLongPolling: false, // This line resolves the conflict
                 merge: true
             });
         } catch (e) {
