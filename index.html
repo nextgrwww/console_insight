@@ -77,10 +77,6 @@
             app = firebase.initializeApp(firebaseConfig);
             auth = firebase.auth();
             db = firebase.firestore();
-            // db.settings({
-            //     experimentalForceLongPolling: true, // Forces a more stable connection type
-            //     merge: true
-            // });
         } catch (e) {
             console.error("Firebase Init Error:", e);
         }
